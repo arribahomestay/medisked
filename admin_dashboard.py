@@ -65,6 +65,7 @@ class AdminDashboard(ctk.CTk):
             username=self.username,
             on_dashboard=self.show_dashboard,
             on_records=self.show_records,
+            on_manage_accounts=self.show_manage_accounts,
             on_settings=self.show_settings,
             on_profile=self.open_profile,
             on_logout=self.logout,
@@ -126,6 +127,12 @@ class AdminDashboard(ctk.CTk):
         page = AdminRecordsPage(self.content)
         self._set_page(page)
 
+    def show_manage_accounts(self):
+        from pages.admin_manage_accounts_page import AdminManageAccountsPage
+
+        page = AdminManageAccountsPage(self.content, username=self.username)
+        self._set_page(page)
+
     def show_settings(self):
         from pages.admin_settings_page import AdminSettingsPage
 
@@ -148,7 +155,7 @@ class AdminDashboard(ctk.CTk):
         by = self.avatar_button.winfo_rooty()
         bw = self.avatar_button.winfo_width()
 
-        width, height = 200, 130
+        width, height = 200, 95
         desired_x = bx - width + bw  # align menu under/right of avatar
         desired_y = by + self.avatar_button.winfo_height() + 4
 
@@ -177,21 +184,13 @@ class AdminDashboard(ctk.CTk):
         )
         btn1.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
 
-        btn2 = ctk.CTkButton(
-            self.account_menu,
-            text="MANAGE ACCOUNTS",
-            anchor="w",
-            command=self._open_manage_accounts,
-        )
-        btn2.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
-
         btn3 = ctk.CTkButton(
             self.account_menu,
             text="SECURITY",
             anchor="w",
             command=self._open_security,
         )
-        btn3.grid(row=2, column=0, padx=10, pady=(4, 8), sticky="ew")
+        btn3.grid(row=1, column=0, padx=10, pady=(4, 8), sticky="ew")
 
     def _close_account_menu(self):
         if self.account_menu is not None and self.account_menu.winfo_exists():
@@ -204,13 +203,6 @@ class AdminDashboard(ctk.CTk):
             self.profile_window = ProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
         else:
             self.profile_window.focus()
-
-    def _open_manage_accounts(self):
-        self._close_account_menu()
-        if self.manage_window is None or not self.manage_window.winfo_exists():
-            self.manage_window = ManageAccountsWindow(self, username=self.username)
-        else:
-            self.manage_window.focus()
 
     def _open_security(self):
         self._close_account_menu()

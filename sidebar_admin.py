@@ -3,18 +3,19 @@ import customtkinter as ctk
 
 class AdminSidebar(ctk.CTkFrame):
     def __init__(self, master, username: str,
-                 on_dashboard, on_records, on_settings,
+                 on_dashboard, on_records, on_manage_accounts, on_settings,
                  on_profile, on_logout):
         super().__init__(master, width=220, corner_radius=0)
 
         self._on_dashboard = on_dashboard
         self._on_records = on_records
+        self._on_manage_accounts = on_manage_accounts
         self._on_settings = on_settings
 
         self.active_fg = "#0d74d1"
         self.inactive_fg = "transparent"
 
-        self.grid_rowconfigure(5, weight=1)
+        self.grid_rowconfigure(6, weight=1)
 
         self.logo_label = ctk.CTkLabel(
             self,
@@ -39,13 +40,21 @@ class AdminSidebar(ctk.CTkFrame):
         )
         self.records_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
 
+        self.manage_accounts_button = ctk.CTkButton(
+            self,
+            text="MANAGE ACCOUNTS",
+            command=lambda: self._handle_nav_click("manage_accounts"),
+            anchor="w",
+        )
+        self.manage_accounts_button.grid(row=4, column=0, padx=12, pady=(0, 10), sticky="ew")
+
         self.settings_button = ctk.CTkButton(
             self,
             text="SETTINGS",
             command=lambda: self._handle_nav_click("settings"),
             anchor="w",
         )
-        self.settings_button.grid(row=4, column=0, padx=12, pady=(0, 10), sticky="ew")
+        self.settings_button.grid(row=5, column=0, padx=12, pady=(0, 10), sticky="ew")
 
         self.active_button = None
         self.set_active("dashboard")
@@ -58,7 +67,7 @@ class AdminSidebar(ctk.CTkFrame):
             command=on_logout,
             anchor="w",
         )
-        self.logout_button.grid(row=7, column=0, padx=12, pady=(0, 20), sticky="ew")
+        self.logout_button.grid(row=8, column=0, padx=12, pady=(0, 20), sticky="ew")
 
     def _handle_nav_click(self, name: str):
         self.set_active(name)
@@ -66,6 +75,8 @@ class AdminSidebar(ctk.CTkFrame):
             self._on_dashboard()
         elif name == "records":
             self._on_records()
+        elif name == "manage_accounts":
+            self._on_manage_accounts()
         elif name == "settings":
             self._on_settings()
 
@@ -73,6 +84,7 @@ class AdminSidebar(ctk.CTkFrame):
         buttons = {
             "dashboard": self.dashboard_button,
             "records": self.records_button,
+            "manage_accounts": self.manage_accounts_button,
             "settings": self.settings_button,
         }
 
