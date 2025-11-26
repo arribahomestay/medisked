@@ -7,7 +7,7 @@ from database import DB_NAME
 
 
 class ProfileWindow(ctk.CTkToplevel):
-    def __init__(self, master, username: str):
+    def __init__(self, master, username: str, anchor_widget=None):
         super().__init__(master)
 
         self.title("Profile Settings")
@@ -17,13 +17,40 @@ class ProfileWindow(ctk.CTkToplevel):
 
         self.transient(master)
         self.update_idletasks()
-        master_x = master.winfo_rootx()
-        master_y = master.winfo_rooty()
-        master_w = master.winfo_width()
-        master_h = master.winfo_height()
-        x = master_x + (master_w - width) // 2
-        y = master_y + (master_h - height) // 2
+
+        if anchor_widget is not None:
+            # Position the window just below and aligned to the right of the anchor widget
+            ax = anchor_widget.winfo_rootx()
+            ay = anchor_widget.winfo_rooty()
+            aw = anchor_widget.winfo_width()
+            ah = anchor_widget.winfo_height()
+
+            x = int(ax + aw - width)
+            y = int(ay + ah + 4)
+        else:
+            master_x = master.winfo_rootx()
+            master_y = master.winfo_rooty()
+            master_w = master.winfo_width()
+            master_h = master.winfo_height()
+            x = master_x + (master_w - width) // 2
+            y = master_y + (master_h - height) // 2
+
         self.geometry(f"{width}x{height}+{x}+{y}")
+
+        # Lock window position so it cannot be moved by dragging
+        self._fixed_pos = (x, y)
+        self._lock_position = False
+
+        def _enforce_position(_event):
+            if self._lock_position:
+                return
+            cur_x, cur_y = self.winfo_x(), self.winfo_y()
+            if (cur_x, cur_y) != self._fixed_pos:
+                self._lock_position = True
+                self.geometry(f"{width}x{height}+{self._fixed_pos[0]}+{self._fixed_pos[1]}")
+                self._lock_position = False
+
+        self.bind("<Configure>", _enforce_position)
 
         self.username = username
 
@@ -59,8 +86,21 @@ class ProfileWindow(ctk.CTkToplevel):
         self.password_entry = ctk.CTkEntry(self, show="*")
         self.password_entry.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        save_button = ctk.CTkButton(self, text="Save", command=self.save_profile)
-        save_button.grid(row=7, column=0, padx=20, pady=(10, 10), sticky="e")
+        buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
+        buttons_frame.grid(row=7, column=0, padx=20, pady=(10, 10), sticky="e")
+
+        close_button = ctk.CTkButton(
+            buttons_frame,
+            text="Close",
+            width=80,
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
+            command=self.destroy,
+        )
+        close_button.grid(row=0, column=0, padx=(0, 8))
+
+        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
+        save_button.grid(row=0, column=1)
 
     def _load_full_name(self) -> str | None:
         conn = sqlite3.connect(DB_NAME)

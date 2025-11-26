@@ -44,6 +44,10 @@ class AdminDashboard(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
+        # Use a consistent dark background color for this window
+        base_bg = "#1f2933"
+        self.configure(fg_color=base_bg)
+
         self.username = username
         self.should_relogin = False
         self.manage_window = None
@@ -67,7 +71,7 @@ class AdminDashboard(ctk.CTk):
         )
         self.sidebar.grid(row=0, column=0, sticky="nsw")
 
-        self.content = ctk.CTkFrame(self, corner_radius=0)
+        self.content = ctk.CTkFrame(self, corner_radius=0, fg_color=base_bg)
         self.content.grid(row=0, column=1, sticky="nsew")
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
@@ -79,16 +83,26 @@ class AdminDashboard(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
         self.status_label.grid(row=0, column=0, sticky="e")
 
-        # Top-right avatar: account emoji icon with transparent background
-        self.avatar_label = ctk.CTkLabel(
+        # Top-right avatar: image button using user.png with transparent background
+        user_png_path = os.path.join(base_dir, "images", "user.png")
+        try:
+            avatar_image = Image.open(user_png_path)
+            self._avatar_icon = ctk.CTkImage(light_image=avatar_image, dark_image=avatar_image, size=(20, 20))
+        except Exception:
+            self._avatar_icon = None
+
+        self.avatar_button = ctk.CTkButton(
             self,
-            text="👤",
+            image=self._avatar_icon,
+            text="",
+            width=28,
+            height=28,
             fg_color="transparent",
-            text_color="#e5e7eb",
-            font=("Segoe UI", 16),
+            hover=False,
+            border_width=0,
+            command=self.open_profile,
         )
-        self.avatar_label.place(relx=1.0, x=-20, y=10, anchor="ne")
-        self.avatar_label.bind("<Button-1>", lambda _event: self.open_profile())
+        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
 
         self.current_page = None
         self.show_dashboard()
@@ -130,13 +144,13 @@ class AdminDashboard(ctk.CTk):
 
         self.account_menu.update_idletasks()
 
-        bx = self.avatar_label.winfo_rootx()
-        by = self.avatar_label.winfo_rooty()
-        bw = self.avatar_label.winfo_width()
+        bx = self.avatar_button.winfo_rootx()
+        by = self.avatar_button.winfo_rooty()
+        bw = self.avatar_button.winfo_width()
 
         width, height = 200, 130
         desired_x = bx - width + bw  # align menu under/right of avatar
-        desired_y = by + self.avatar_label.winfo_height() + 4
+        desired_y = by + self.avatar_button.winfo_height() + 4
 
         root_x = self.winfo_rootx()
         root_y = self.winfo_rooty()
@@ -187,7 +201,7 @@ class AdminDashboard(ctk.CTk):
     def _open_account_settings(self):
         self._close_account_menu()
         if self.profile_window is None or not self.profile_window.winfo_exists():
-            self.profile_window = ProfileWindow(self, username=self.username)
+            self.profile_window = ProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
         else:
             self.profile_window.focus()
 
