@@ -82,6 +82,20 @@ class MainApp(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
         self.status_label.grid(row=0, column=0, sticky="e")
 
+        # Top-right avatar button for profile
+        self.avatar_button = ctk.CTkButton(
+            self,
+            text="👤",
+            width=26,
+            height=26,
+            corner_radius=0,
+            fg_color="#303030",  # dark gray to blend with app background
+            hover=False,
+            border_width=0,
+            command=self.open_profile,
+        )
+        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
+
         self.current_page = None
         self.show_appointment()
         self._update_status_bar()

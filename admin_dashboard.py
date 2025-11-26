@@ -78,6 +78,20 @@ class AdminDashboard(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
         self.status_label.grid(row=0, column=0, sticky="e")
 
+        # Top-right avatar button for account/profile actions
+        self.avatar_button = ctk.CTkButton(
+            self,
+            text="👤",
+            width=26,
+            height=26,
+            corner_radius=0,
+            fg_color="#303030",  # dark gray to blend with app background
+            hover=False,
+            border_width=0,
+            command=self.open_profile,
+        )
+        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
+
         self.current_page = None
         self.show_dashboard()
         self._update_status_bar()
@@ -118,13 +132,13 @@ class AdminDashboard(ctk.CTk):
 
         self.account_menu.update_idletasks()
 
-        bx = self.sidebar.avatar_button.winfo_rootx()
-        by = self.sidebar.avatar_button.winfo_rooty()
-        bw = self.sidebar.avatar_button.winfo_width()
+        bx = self.avatar_button.winfo_rootx()
+        by = self.avatar_button.winfo_rooty()
+        bw = self.avatar_button.winfo_width()
 
         width, height = 200, 130
-        desired_x = bx + bw + 8
-        desired_y = by
+        desired_x = bx - width + bw  # align menu under/right of avatar
+        desired_y = by + self.avatar_button.winfo_height() + 4
 
         root_x = self.winfo_rootx()
         root_y = self.winfo_rooty()

@@ -25,11 +25,11 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         )
         title.grid(row=0, column=0, padx=30, pady=(10, 4), sticky="w")
 
-        form = ctk.CTkFrame(self, corner_radius=10)
+        form = ctk.CTkScrollableFrame(self, corner_radius=10)
         form.grid(row=1, column=0, padx=30, pady=(0, 30), sticky="nsew")
         form.grid_columnconfigure(1, weight=1)
         # Only the slots area should take extra vertical space so the notes field isn't cropped
-        form.grid_rowconfigure(10, weight=1)  # slots area grows, pushes actions row to bottom
+        form.grid_rowconfigure(11, weight=1)  # slots area grows, pushes actions row to bottom
 
         # Patient details section (now first)
         ctk.CTkLabel(form, text="Patient details", font=("Segoe UI", 15, "bold")).grid(
@@ -164,31 +164,56 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
 
         ctk.CTkLabel(form, text="Date").grid(row=8, column=0, padx=20, pady=4, sticky="w")
         date_row = ctk.CTkFrame(form, fg_color="transparent")
-        date_row.grid(row=8, column=1, padx=20, pady=4, sticky="w")
-        date_row.grid_columnconfigure(0, weight=0)
+        date_row.grid(row=8, column=1, padx=20, pady=4, sticky="ew")
+        date_row.grid_columnconfigure(0, weight=1)
         date_row.grid_columnconfigure(1, weight=0)
-        date_row.grid_columnconfigure(2, weight=0)
 
         months = [f"{m:02d}" for m in range(1, 13)]
         days = [f"{d:02d}" for d in range(1, 32)]
         current_year = date.today().year
         years = [str(current_year + offset) for offset in range(0, 3)]
 
+        # Keep month/day/year combos for internal logic and clamping,
+        # but hide them from the modern receptionist UI.
         self.date_month_combo = ctk.CTkComboBox(date_row, values=months, width=70, state="readonly")
-        self.date_month_combo.grid(row=0, column=0, padx=(0, 4))
-
         self.date_day_combo = ctk.CTkComboBox(date_row, values=days, width=70, state="readonly")
-        self.date_day_combo.grid(row=0, column=1, padx=4)
-
         self.date_year_combo = ctk.CTkComboBox(date_row, values=years, width=70, state="readonly")
-        self.date_year_combo.grid(row=0, column=2, padx=(4, 0))
 
         self.date_entry = ctk.CTkEntry(date_row)
-        self.date_entry.grid_remove()
+        self.date_entry.grid(row=0, column=0, padx=(0, 4), sticky="ew")
 
-        ctk.CTkLabel(form, text="Time").grid(row=9, column=0, padx=20, pady=4, sticky="w")
+        # Inline calendar (like Schedule tab) lives directly in the appointment page;
+        # we keep the popup date-picker button hidden / unused.
+        self._date_picker_button = ctk.CTkButton(
+            date_row,
+            text="\ud83d\udcc5",
+            width=32,
+            command=self._open_date_picker,
+        )
+        self._date_picker_button.grid_remove()
+
+        # Inline calendar header + grid (full-width like Schedule tab)
+        cal_container = ctk.CTkFrame(form, fg_color="transparent")
+        cal_container.grid(row=9, column=0, columnspan=2, padx=20, pady=(0, 4), sticky="ew")
+        cal_container.grid_columnconfigure(1, weight=1)
+
+        self.appt_cal_prev_btn = ctk.CTkButton(cal_container, text="<", width=32, command=self._appt_prev_month)
+        self.appt_cal_prev_btn.grid(row=0, column=0, padx=(0, 5), pady=(0, 2))
+
+        self.appt_month_label = ctk.CTkLabel(cal_container, text="", font=("Segoe UI", 14, "bold"))
+        self.appt_month_label.grid(row=0, column=1, sticky="w")
+
+        self.appt_cal_next_btn = ctk.CTkButton(cal_container, text=">", width=32, command=self._appt_next_month)
+        self.appt_cal_next_btn.grid(row=0, column=2, padx=(5, 0), pady=(0, 2))
+
+        self.appt_calendar_frame = ctk.CTkFrame(form, corner_radius=10)
+        self.appt_calendar_frame.grid(row=10, column=0, columnspan=2, padx=20, pady=(0, 6), sticky="nsew")
+        for col in range(7):
+            self.appt_calendar_frame.grid_columnconfigure(col, weight=1)
+
+        ctk.CTkLabel(form, text="Time").grid(row=11, column=0, padx=20, pady=4, sticky="w")
         time_row = ctk.CTkFrame(form, fg_color="transparent")
-        time_row.grid(row=9, column=1, padx=20, pady=4, sticky="w")
+        time_row.grid(row=11, column=1, padx=20, pady=4, sticky="w")
 
         hours = [f"{h:02d}" for h in range(1, 13)]
         minutes = ["00", "15", "30", "45"]
@@ -196,30 +221,28 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
 
         self.time_hour_combo = ctk.CTkComboBox(time_row, values=hours, width=70, state="readonly")
         self.time_hour_combo.set("09")
-        self.time_hour_combo.grid(row=0, column=0, padx=(0, 4))
-
         self.time_minute_combo = ctk.CTkComboBox(time_row, values=minutes, width=70, state="readonly")
         self.time_minute_combo.set("00")
-        self.time_minute_combo.grid(row=0, column=1, padx=4)
-
         self.time_period_combo = ctk.CTkComboBox(time_row, values=periods, width=70, state="readonly")
         self.time_period_combo.set("AM")
-        self.time_period_combo.grid(row=0, column=2, padx=(4, 4))
 
-        duration_label = ctk.CTkLabel(time_row, text="(Duration: 2 hours)", font=("Segoe UI", 11))
-        duration_label.grid(row=0, column=4, padx=(8, 0), sticky="w")
-
-        check_btn = ctk.CTkButton(
+        duration_label = ctk.CTkLabel(
             time_row,
-            text="Check",
-            width=70,
-            command=self._check_time_available,
+            text="Select an available time slot below (Duration: 2 hours)",
+            font=("Segoe UI", 11),
         )
-        check_btn.grid(row=0, column=3, padx=(0, 0))
+        duration_label.grid(row=0, column=0, padx=(0, 0), sticky="w")
+
+        # Hide legacy time combo boxes and the old Check button from the modern UI,
+        # but keep the widgets around so existing logic that references them
+        # continues to work safely.
+        self.time_hour_combo.grid_remove()
+        self.time_minute_combo.grid_remove()
+        self.time_period_combo.grid_remove()
 
         # Action buttons row (right-aligned), placed at the bottom of the form.
         actions_row = ctk.CTkFrame(form, fg_color="transparent")
-        actions_row.grid(row=11, column=0, columnspan=2, padx=20, pady=(8, 16), sticky="e")
+        actions_row.grid(row=12, column=0, columnspan=2, padx=20, pady=(8, 16), sticky="e")
         actions_row.grid_columnconfigure(0, weight=0)
         actions_row.grid_columnconfigure(1, weight=0)
 
@@ -244,15 +267,19 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         # Time is auto-assigned; keep an invisible frame so other logic can safely clear it,
         # but place it below the action buttons so it doesn't create extra visual space.
         dummy_container = ctk.CTkFrame(form, corner_radius=8, fg_color="transparent")
-        dummy_container.grid(row=10, column=0, columnspan=2, padx=20, pady=0, sticky="nsew")
+        dummy_container.grid(row=11, column=0, columnspan=2, padx=20, pady=0, sticky="nsew")
         dummy_container.grid_columnconfigure(0, weight=1)
 
         self.slots_frame = ctk.CTkFrame(dummy_container, corner_radius=8, fg_color="transparent")
-        self.slots_frame.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
+        self.slots_frame.grid(row=0, column=0, padx=0, pady=(0, 4), sticky="nsew")
 
-        # Selected_schedule is no longer chosen by clicking a time slot; it will be
-        # computed automatically when saving the appointment based on the first
-        # available slot on the chosen day.
+        self.slot_summary_label = ctk.CTkLabel(
+            dummy_container,
+            text="No time selected.",
+            anchor="w",
+        )
+        self.slot_summary_label.grid(row=1, column=0, padx=(0, 0), pady=(2, 0), sticky="w")
+
         self.selected_schedule = None
         self._selected_slot_btn = None
         self.available_dates = []
@@ -267,6 +294,11 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self.date_day_combo.set(f"{today.day:02d}")
         self.date_year_combo.set(str(today.year))
         self._sync_date_entry_from_combos()
+
+        # Inline appointment calendar starts at the current month
+        self.appt_cal_year = today.year
+        self.appt_cal_month = today.month
+        self._refresh_appt_calendar()
 
         self.date_month_combo.configure(command=lambda _v: self._sync_date_entry_from_combos())
         self.date_day_combo.configure(command=lambda _v: self._sync_date_entry_from_combos())
@@ -395,6 +427,140 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
             self._sync_date_entry_from_combos()
         except Exception:
             pass
+
+        # Reset inline calendar to today after clearing
+        today = date.today()
+        self.appt_cal_year = today.year
+        self.appt_cal_month = today.month
+        self._refresh_appt_calendar()
+
+    # ------------------------------------------------------------------
+    # Inline appointment calendar (Schedule-style grid embedded in page)
+    # ------------------------------------------------------------------
+
+    def _appt_prev_month(self):
+        if not hasattr(self, "appt_cal_year"):
+            return
+        if self.appt_cal_month == 1:
+            self.appt_cal_month = 12
+            self.appt_cal_year -= 1
+        else:
+            self.appt_cal_month -= 1
+        self._refresh_appt_calendar()
+
+    def _appt_next_month(self):
+        if not hasattr(self, "appt_cal_year"):
+            return
+        if self.appt_cal_month == 12:
+            self.appt_cal_month = 1
+            self.appt_cal_year += 1
+        else:
+            self.appt_cal_month += 1
+        self._refresh_appt_calendar()
+
+    def _refresh_appt_calendar(self):
+        """Rebuild the inline appointment calendar grid using doctor availability.
+
+        Mirrors the visual style of the receptionist Schedule tab but is focused on
+        selecting a single appointment date and driving the time-slot buttons.
+        """
+
+        if not hasattr(self, "appt_calendar_frame"):
+            return
+
+        for child in self.appt_calendar_frame.winfo_children():
+            child.destroy()
+
+        year = getattr(self, "appt_cal_year", date.today().year)
+        month = getattr(self, "appt_cal_month", date.today().month)
+
+        # Month label like "November 2025"
+        try:
+            self.appt_month_label.configure(text=f"{calendar.month_name[month]} {year}")
+        except Exception:
+            pass
+
+        # Weekday headers
+        for i, wd in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
+            lbl = ctk.CTkLabel(self.appt_calendar_frame, text=wd, font=("Segoe UI", 12, "bold"))
+            lbl.grid(row=0, column=i, pady=(0, 5))
+
+        today_str = date.today().strftime("%Y-%m-%d")
+
+        # Determine per-day availability for the selected doctor in this month.
+        # not_available_days -> explicitly marked "not available" (red)
+        selected_doctor = self.doctor_combo.get().strip()
+        not_available_days = set()
+
+        if selected_doctor and selected_doctor != "Add doctor first":
+            conn = self._connect()
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM doctors WHERE name = ? AND status = 'active'", (selected_doctor,))
+            row = cur.fetchone()
+            if row is not None:
+                doctor_id = row[0]
+                month_start = f"{year:04d}-{month:02d}-01"
+                month_end = f"{year:04d}-{month:02d}-31"
+
+                # Days explicitly set to not available (day-level flag)
+                cur.execute(
+                    """
+                    SELECT date FROM doctor_availability
+                    WHERE doctor_id = ?
+                      AND date BETWEEN ? AND ?
+                      AND start_time IS NULL
+                      AND is_available = 0
+                    """,
+                    (doctor_id, month_start, month_end),
+                )
+                not_available_days = {d for (d,) in cur.fetchall()}
+
+            conn.close()
+
+        cal = calendar.Calendar(firstweekday=0)
+        row = 1
+        for week in cal.monthdayscalendar(year, month):
+            for col, day_num in enumerate(week):
+                if day_num == 0:
+                    continue
+                d_str = f"{year:04d}-{month:02d}-{day_num:02d}"
+
+                if d_str < today_str:
+                    # Past dates: gray, disabled
+                    fg = "#555555"
+                    hover = fg
+                    state = "disabled"
+                elif d_str in not_available_days:
+                    # Explicitly not available: red, disabled
+                    fg = "#c0392b"
+                    hover = fg
+                    state = "disabled"
+                else:
+                    # Match receptionist Schedule tab: all future days are considered
+                    # available (green) unless the doctor explicitly marked them
+                    # not available.
+                    fg = "#1c9b3b"
+                    hover = "#17a349"
+                    state = "normal"
+
+                def _pick(ds=d_str):
+                    self.date_entry.delete(0, "end")
+                    self.date_entry.insert(0, ds)
+                    self.current_date_index = None
+                    self._sync_combos_from_date_entry()
+
+                btn = ctk.CTkButton(
+                    self.appt_calendar_frame,
+                    text=str(day_num),
+                    width=40,
+                    height=32,
+                    fg_color=fg,
+                    hover_color=hover,
+                    state=state,
+                    command=(None if state == "disabled" else _pick),
+                )
+                btn.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+            row += 1
 
     def _sync_date_entry_from_combos(self) -> None:
         """Update internal date_entry from month/day/year combos and reload slots."""
@@ -545,6 +711,13 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         if not dates:
             self._load_slots()
 
+        # Refresh the inline appointment calendar whenever the available
+        # dates list changes (e.g., doctor selection or availability edits).
+        try:
+            self._refresh_appt_calendar()
+        except Exception:
+            pass
+
     def _open_date_picker(self):
         if self._date_picker_win is not None and self._date_picker_win.winfo_exists():
             return
@@ -665,7 +838,11 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
 
         today_str = date.today().strftime("%Y-%m-%d")
 
-        for i, wd in enumerate(["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]):
+        # Normalized set of dates where this doctor actually has availability
+        # (as pre-fetched by _load_dates) so only those are highlighted green.
+        available_set = set(self.available_dates or [])
+
+        for i, wd in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
             lbl = ctk.CTkLabel(self._picker_body, text=wd)
             lbl.grid(row=0, column=i, pady=(0, 4))
 
@@ -717,11 +894,16 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
                     fg_color = "#c0392b"
                     hover_color = "#c0392b"
                     state = "disabled"
-                else:
-                    # By default days are available (green) and clickable
+                elif d_str in available_set:
+                    # Doctor has defined availability on this date -> green and clickable
                     fg_color = "#1c9b3b"
                     hover_color = "#17a349"
                     state = "normal"
+                else:
+                    # Future day but no configured availability -> gray/disabled
+                    fg_color = "#555555"
+                    hover_color = "#555555"
+                    state = "disabled"
 
                 btn = ctk.CTkButton(
                     self._picker_body,
@@ -915,20 +1097,23 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self._set_date_from_index()
 
     def _load_slots(self):
-        # No longer showing individual time slots; just clear any previous content.
+        # Rebuild the modern time-slot grid for the selected doctor and date.
         for child in self.slots_frame.winfo_children():
             child.destroy()
         self.selected_schedule = None
         self._selected_slot_btn = None
+        if hasattr(self, "slot_summary_label"):
+            self.slot_summary_label.configure(text="No time selected.")
 
         date_str = self.date_entry.get().strip()
-        filter_by_date = bool(date_str)
-
-        # Do not show slots for past dates
-        if filter_by_date and date_str < date.today().strftime("%Y-%m-%d"):
+        if not date_str:
             return
 
-        # Respect selected doctor; if none, there is nothing to show
+        # Do not show slots for past dates
+        today_str = date.today().strftime("%Y-%m-%d")
+        if date_str < today_str:
+            return
+
         selected_doctor = self.doctor_combo.get().strip()
         if not selected_doctor:
             return
@@ -936,50 +1121,105 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         conn = self._connect()
         cur = conn.cursor()
 
-        # Fetch availability slots for either a specific date or all dates,
-        # but only for the currently selected doctor.
-        if filter_by_date:
-            cur.execute(
-                """
-                SELECT d.name, a.date, a.start_time, a.end_time,
-                       a.max_appointments, a.slot_length_minutes
-                FROM doctor_availability a
-                JOIN doctors d ON d.id = a.doctor_id
-                WHERE a.date = ?
-                  AND d.name = ?
-                  AND a.is_available = 1
-                  AND a.start_time IS NOT NULL
-                  AND d.status = 'active'
-                ORDER BY a.date, d.name, a.start_time
-                """,
-                (date_str, selected_doctor),
-            )
-        else:
-            cur.execute(
-                """
-                SELECT d.name, a.date, a.start_time, a.end_time,
-                       a.max_appointments, a.slot_length_minutes
-                FROM doctor_availability a
-                JOIN doctors d ON d.id = a.doctor_id
-                WHERE d.name = ?
-                  AND a.is_available = 1
-                  AND a.start_time IS NOT NULL
-                  AND d.status = 'active'
-                ORDER BY a.date, d.name, a.start_time
-                """,
-                (selected_doctor,),
-            )
+        # Fetch availability windows for this doctor and date
+        cur.execute(
+            """
+            SELECT a.start_time, a.end_time, a.max_appointments, a.slot_length_minutes
+            FROM doctor_availability a
+            JOIN doctors d ON d.id = a.doctor_id
+            WHERE a.date = ?
+              AND d.name = ?
+              AND a.is_available = 1
+              AND a.start_time IS NOT NULL
+              AND d.status = 'active'
+            ORDER BY a.start_time
+            """,
+            (date_str, selected_doctor),
+        )
 
-        slots = cur.fetchall()
+        windows = cur.fetchall()
 
-        # We no longer render individual slot buttons here; this method is
-        # retained only so that date navigation and availability queries keep
-        # working. Actual selection of a concrete time happens inside
-        # _find_first_available_schedule.
+        from datetime import timedelta as _td
+
+        # Layout config: up to 4 buttons per row
+        self.slots_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        row_idx = 0
+        col_idx = 0
+
+        for start_t, end_t, max_appt, slot_len in windows:
+            try:
+                range_start = datetime.strptime(f"{date_str} {start_t}", "%Y-%m-%d %H:%M")
+                range_end = datetime.strptime(f"{date_str} {end_t}", "%Y-%m-%d %H:%M")
+            except ValueError:
+                continue
+
+            # Fixed 2-hour appointments, step forward by 2 hours for each option
+            step = _td(hours=2)
+            current = range_start
+            while current + step <= range_end:
+                end_dt = current + step
+
+                # Skip times that fail the availability check (doctor rules + overlaps)
+                time_24 = current.strftime("%H:%M")
+                ok, _reason = self._is_time_available_for_two_hours(
+                    selected_doctor, date_str, time_24
+                )
+
+                schedule_str = current.strftime("%Y-%m-%d %H:%M")
+
+                # Capacity for each exact start time is 1 in this receptionist flow
+                cur.execute(
+                    "SELECT COUNT(*) FROM appointments WHERE doctor_name = ? AND schedule = ?",
+                    (selected_doctor, schedule_str),
+                )
+                count = cur.fetchone()[0]
+                remaining = max(0, 1 - int(count))
+
+                pretty_start = current.strftime("%I:%M %p").lstrip("0")
+                pretty_end = end_dt.strftime("%I:%M %p").lstrip("0")
+                label_text = f"{pretty_start} - {pretty_end}"
+
+                if not ok or remaining <= 0:
+                    fg = "#4b5563"  # gray for full / not allowed
+                    hover = fg
+                    state = "disabled"
+                else:
+                    fg = "#16a34a"  # green for available
+                    hover = "#15803d"
+                    state = "normal"
+
+                btn = ctk.CTkButton(
+                    self.slots_frame,
+                    text=label_text,
+                    width=140,
+                    height=28,
+                    fg_color=fg,
+                    hover_color=hover,
+                    state=state,
+                )
+
+                if state == "normal":
+                    btn._base_fg_color = fg
+                    btn.configure(
+                        command=lambda s=schedule_str, b=btn, rem=remaining, ma=1, doc=selected_doctor: self._select_slot(
+                            s,
+                            b,
+                            rem,
+                            ma,
+                            doc,
+                        )
+                    )
+
+                btn.grid(row=row_idx, column=col_idx, padx=4, pady=4, sticky="ew")
+                col_idx += 1
+                if col_idx >= 4:
+                    col_idx = 0
+                    row_idx += 1
+
+                current += step
 
         conn.close()
-
-        # We no longer render slots here; availability will be checked when saving.
 
     def _find_first_available_schedule(self, doctor: str, date_str: str):
         """Return the earliest free schedule for a doctor on a given date.
@@ -1112,11 +1352,7 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
                 self.slot_summary_label.configure(text=f"Selected: {doctor} · {date_str} {time_str}")
 
     def save_appointment(self):
-        """Validate input and show a review/receipt window before saving.
-
-        The receptionist selects only doctor + date; the system automatically
-        chooses the first available time slot on that day for that doctor.
-        """
+        """Validate input and show a review window before saving using a chosen slot."""
         doctor = self.doctor_combo.get().strip()
         patient = self.patient_entry.get().strip()
         contact = self.contact_entry.get().strip()
@@ -1129,41 +1365,19 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
             messagebox.showwarning("Validation", "Doctor, date, and patient name are required.")
             return
 
-        hour_str = self.time_hour_combo.get().strip()
-        minute_str = self.time_minute_combo.get().strip()
-        period = self.time_period_combo.get().strip()
-
-        try:
-            h = int(hour_str)
-            m = int(minute_str)
-        except ValueError:
-            messagebox.showwarning("Validation", "Selected time is invalid.")
+        schedule_str = self.selected_schedule
+        if not schedule_str:
+            messagebox.showwarning("Validation", "Select an available time slot.")
             return
 
-        if h < 1 or h > 12 or m < 0 or m > 59 or period not in ("AM", "PM"):
-            messagebox.showwarning("Validation", "Selected time is invalid.")
-            return
-
-        if period == "AM":
-            if h == 12:
-                h_24 = 0
-            else:
-                h_24 = h
-        else:
-            if h == 12:
-                h_24 = 12
-            else:
-                h_24 = h + 12
-
-        schedule_str = f"{date_str} {h_24:02d}:{m:02d}"
         try:
             dt = datetime.strptime(schedule_str, "%Y-%m-%d %H:%M")
         except ValueError:
-            messagebox.showwarning("Validation", "Selected date is invalid.")
+            messagebox.showwarning("Validation", "Selected time is invalid.")
             return
 
-        # Enforce fixed 2-hour duration and no overlap with existing appointments
-        time_24 = f"{h_24:02d}:{m:02d}"
+        # Final safety check: ensure this 2-hour window is still valid
+        time_24 = dt.strftime("%H:%M")
         available, reason = self._is_time_available_for_two_hours(doctor, date_str, time_24)
         if not available:
             messagebox.showerror("Appointment", reason or "This time is not available.")

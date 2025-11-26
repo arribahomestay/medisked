@@ -67,18 +67,6 @@ class DoctorSidebar(ctk.CTkFrame):
         self.active_button = None
         self.set_active("dashboard")
 
-        self.avatar_button = ctk.CTkButton(
-            self,
-            text="👤",
-            width=26,
-            height=26,
-            corner_radius=13,
-            fg_color="transparent",
-            border_width=0,
-            command=self._on_profile,
-        )
-        self.avatar_button.grid(row=8, column=0, padx=16, pady=(0, 2), sticky="w")
-
         self.logout_button = ctk.CTkButton(
             self,
             text="Logout",
