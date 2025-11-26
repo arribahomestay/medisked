@@ -79,76 +79,17 @@ class AdminRecordsPage(ctk.CTkFrame):
         header_row = ctk.CTkFrame(table_container, fg_color="transparent")
         header_row.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
         header_row.grid_columnconfigure(0, weight=1)
-        header_row.grid_columnconfigure(1, weight=1)
-        header_row.grid_columnconfigure(2, weight=1)
-        header_row.grid_columnconfigure(3, weight=1)
-        header_row.grid_columnconfigure(4, weight=1)
-        header_row.grid_columnconfigure(5, weight=1)
-        header_row.grid_columnconfigure(6, weight=1)
-        header_row.grid_columnconfigure(7, weight=1)
 
-        id_header = ctk.CTkLabel(header_row, text="ID", font=("Segoe UI", 13, "bold"))
-        id_header.grid(row=0, column=0, sticky="w")
-
-        patient_header = ctk.CTkLabel(
+        header_label = ctk.CTkLabel(
             header_row,
-            text="Patient",
+            text="Appointments",
             font=("Segoe UI", 13, "bold"),
         )
-        patient_header.grid(row=0, column=1, sticky="w")
-
-        doctor_header = ctk.CTkLabel(
-            header_row,
-            text="Doctor",
-            font=("Segoe UI", 13, "bold"),
-        )
-        doctor_header.grid(row=0, column=2, sticky="w")
-
-        schedule_header = ctk.CTkLabel(
-            header_row,
-            text="Schedule",
-            font=("Segoe UI", 13, "bold"),
-        )
-        schedule_header.grid(row=0, column=3, sticky="w")
-
-        notes_header = ctk.CTkLabel(
-            header_row,
-            text="Notes",
-            font=("Segoe UI", 13, "bold"),
-        )
-        notes_header.grid(row=0, column=4, sticky="w", padx=(0, 5))
-
-        paid_header = ctk.CTkLabel(
-            header_row,
-            text="Paid",
-            font=("Segoe UI", 13, "bold"),
-        )
-        paid_header.grid(row=0, column=5, sticky="w")
-
-        amount_header = ctk.CTkLabel(
-            header_row,
-            text="Amount paid",
-            font=("Segoe UI", 13, "bold"),
-        )
-        amount_header.grid(row=0, column=6, sticky="w")
-
-        actions_header = ctk.CTkLabel(
-            header_row,
-            text="Actions",
-            font=("Segoe UI", 13, "bold"),
-        )
-        actions_header.grid(row=0, column=7, sticky="w")
+        header_label.grid(row=0, column=0, sticky="w")
 
         self.table_frame = ctk.CTkScrollableFrame(table_container, corner_radius=10)
         self.table_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(5, 10))
         self.table_frame.grid_columnconfigure(0, weight=1)
-        self.table_frame.grid_columnconfigure(1, weight=1)
-        self.table_frame.grid_columnconfigure(2, weight=1)
-        self.table_frame.grid_columnconfigure(3, weight=1)
-        self.table_frame.grid_columnconfigure(4, weight=1)
-        self.table_frame.grid_columnconfigure(5, weight=1)
-        self.table_frame.grid_columnconfigure(6, weight=1)
-        self.table_frame.grid_columnconfigure(7, weight=1)
 
         self.records = []
         self.reload_records()
@@ -192,70 +133,34 @@ class AdminRecordsPage(ctk.CTkFrame):
         for row_index, rec in enumerate(filtered):
             rid, patient, doctor, schedule, notes, is_paid, amount_paid = rec
 
-            row_widgets = []
-
-            id_label = ctk.CTkLabel(self.table_frame, text=str(rid), anchor="w")
-            id_label.grid(row=row_index, column=0, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(id_label)
-
-            patient_label = ctk.CTkLabel(
-                self.table_frame,
-                text=patient,
-                anchor="w",
-            )
-            patient_label.grid(row=row_index, column=1, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(patient_label)
-
-            doctor_label = ctk.CTkLabel(
-                self.table_frame,
-                text=doctor,
-                anchor="w",
-            )
-            doctor_label.grid(row=row_index, column=2, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(doctor_label)
+            # Each record is rendered as a single "folder-like" row with summary text
+            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8)
+            row_frame.grid(row=row_index, column=0, sticky="ew", padx=0, pady=4)
+            row_frame.grid_columnconfigure(0, weight=1)
+            row_frame.grid_columnconfigure(1, weight=0)
 
             pretty_schedule = self._format_schedule(schedule)
-
-            schedule_label = ctk.CTkLabel(
-                self.table_frame,
-                text=pretty_schedule,
-                anchor="w",
+            paid_text = "PAID" if is_paid else "UNPAID"
+            amount_text = f"₱{amount_paid:,.2f}" if amount_paid else "-"
+            summary_text = (
+                f"#{rid}  ·  {patient}  ·  {doctor}  ·  {pretty_schedule}  ·  {paid_text}  ·  {amount_text}"
             )
-            schedule_label.grid(row=row_index, column=3, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(schedule_label)
 
-            notes_text = notes or ""
-            notes_label = ctk.CTkLabel(
-                self.table_frame,
-                text=notes_text,
+            summary_label = ctk.CTkLabel(
+                row_frame,
+                text=summary_text,
                 anchor="w",
+                justify="left",
             )
-            notes_label.grid(row=row_index, column=4, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(notes_label)
+            summary_label.grid(row=0, column=0, padx=12, pady=6, sticky="w")
 
-            paid_label = ctk.CTkLabel(
-                self.table_frame,
-                text=("Yes" if is_paid else "No"),
-                anchor="w",
-            )
-            paid_label.grid(row=row_index, column=5, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(paid_label)
-
-            amount_label = ctk.CTkLabel(
-                self.table_frame,
-                text=(f"₱{amount_paid:,.2f}" if amount_paid else "-"),
-                anchor="w",
-            )
-            amount_label.grid(row=row_index, column=6, sticky="ew", padx=(0, 5), pady=2)
-            row_widgets.append(amount_label)
-
-            actions_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
-            actions_frame.grid(row=row_index, column=7, sticky="e", padx=(0, 5), pady=2)
+            actions_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            actions_frame.grid(row=0, column=1, padx=(4, 8), pady=6, sticky="e")
 
             view_btn = ctk.CTkButton(
                 actions_frame,
                 text="VIEW",
-                width=40,
+                width=50,
                 height=24,
                 fg_color="#0d74d1",
                 hover_color="#0b63b3",
@@ -266,21 +171,38 @@ class AdminRecordsPage(ctk.CTkFrame):
             edit_btn = ctk.CTkButton(
                 actions_frame,
                 text="EDIT",
-                width=40,
+                width=50,
                 height=24,
                 fg_color="#1c9b3b",
                 hover_color="#178533",
                 command=lambda r=rec: self._edit_record(r),
             )
-            edit_btn.grid(row=0, column=1, padx=(0, 0))
+            edit_btn.grid(row=0, column=1, padx=(0, 4))
 
-            row_widgets.extend([actions_frame, view_btn, edit_btn])
+            delete_btn = ctk.CTkButton(
+                actions_frame,
+                text="DELETE",
+                width=60,
+                height=24,
+                fg_color="#dc2626",
+                hover_color="#b91c1c",
+                command=lambda r=rec: self._delete_record(r),
+            )
+            delete_btn.grid(row=0, column=2, padx=(0, 0))
 
-            for widget in row_widgets:
-                widget.bind(
-                    "<Button-3>",
-                    lambda event, record=rec: self._show_row_menu(event, record),
-                )
+            # Clicking anywhere on the row or summary opens the details view
+            def _open_details(_event=None, r=rec):
+                self._view_details(r)
+
+            row_frame.bind("<Button-1>", _open_details)
+            summary_label.bind("<Button-1>", _open_details)
+
+            # Right-click context menu on the row
+            def _on_right_click(event, r=rec):
+                self._show_row_menu(event, r)
+
+            row_frame.bind("<Button-3>", _on_right_click)
+            summary_label.bind("<Button-3>", _on_right_click)
 
     def _show_row_menu(self, event, record):
         menu = Menu(self, tearoff=0)
@@ -291,6 +213,10 @@ class AdminRecordsPage(ctk.CTkFrame):
         menu.add_command(
             label="Edit",
             command=lambda r=record: self._edit_record(r),
+        )
+        menu.add_command(
+            label="Delete",
+            command=lambda r=record: self._delete_record(r),
         )
 
         menu.tk_popup(event.x_root, event.y_root)
@@ -367,7 +293,8 @@ class AdminRecordsPage(ctk.CTkFrame):
 
         win = ctk.CTkToplevel(self)
         win.title(f"Edit Appointment #{rid}")
-        win.geometry("420x320")
+        # Larger window to comfortably show all fields
+        win.geometry("520x420")
 
         win.transient(self)
         win.grab_set()
@@ -379,13 +306,14 @@ class AdminRecordsPage(ctk.CTkFrame):
         parent_y = self.winfo_rooty()
         parent_w = self.winfo_width()
         parent_h = self.winfo_height()
-        win_w = 420
-        win_h = 320
+        win_w = 520
+        win_h = 420
         x = parent_x + (parent_w - win_w) // 2
         y = parent_y + (parent_h - win_h) // 2
         win.geometry(f"{win_w}x{win_h}+{x}+{y}")
 
         win.grid_columnconfigure(1, weight=1)
+        win.grid_rowconfigure(6, weight=1)
 
         ctk.CTkLabel(win, text="Patient").grid(row=0, column=0, padx=20, pady=(20, 5), sticky="w")
         patient_entry = ctk.CTkEntry(win)
@@ -402,21 +330,75 @@ class AdminRecordsPage(ctk.CTkFrame):
         schedule_entry.insert(0, schedule)
         schedule_entry.grid(row=2, column=1, padx=20, pady=5, sticky="ew")
 
-        ctk.CTkLabel(win, text="Notes").grid(row=3, column=0, padx=20, pady=5, sticky="nw")
+        # Parse meta information from combined notes (same format used elsewhere)
+        raw_meta = notes or ""
+        meta_parts = [p.strip() for p in raw_meta.split("|") if p.strip()]
+        meta_values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
+        for p in meta_parts:
+            if ":" in p:
+                key, val = p.split(":", 1)
+                key = key.strip()
+                val = val.strip()
+                if key in meta_values:
+                    meta_values[key] = val
+                else:
+                    if meta_values["Notes"]:
+                        meta_values["Notes"] += " " + p
+                    else:
+                        meta_values["Notes"] = p
+            else:
+                if meta_values["Notes"]:
+                    meta_values["Notes"] += " " + p
+                else:
+                    meta_values["Notes"] = p
+
+        ctk.CTkLabel(win, text="Contact").grid(row=3, column=0, padx=20, pady=5, sticky="w")
+        contact_entry = ctk.CTkEntry(win)
+        if meta_values["Contact"]:
+            contact_entry.insert(0, meta_values["Contact"])
+        contact_entry.grid(row=3, column=1, padx=20, pady=5, sticky="ew")
+
+        ctk.CTkLabel(win, text="Address").grid(row=4, column=0, padx=20, pady=5, sticky="w")
+        address_entry = ctk.CTkEntry(win)
+        if meta_values["Address"]:
+            address_entry.insert(0, meta_values["Address"])
+        address_entry.grid(row=4, column=1, padx=20, pady=5, sticky="ew")
+
+        ctk.CTkLabel(win, text="About").grid(row=5, column=0, padx=20, pady=5, sticky="w")
+        about_entry = ctk.CTkEntry(win)
+        if meta_values["About"]:
+            about_entry.insert(0, meta_values["About"])
+        about_entry.grid(row=5, column=1, padx=20, pady=5, sticky="ew")
+
+        ctk.CTkLabel(win, text="Notes").grid(row=6, column=0, padx=20, pady=5, sticky="nw")
         notes_entry = ctk.CTkTextbox(win, height=80)
-        if notes:
-            notes_entry.insert("1.0", notes)
-        notes_entry.grid(row=3, column=1, padx=20, pady=5, sticky="nsew")
+        if meta_values["Notes"]:
+            notes_entry.insert("1.0", meta_values["Notes"])
+        notes_entry.grid(row=6, column=1, padx=20, pady=5, sticky="nsew")
 
         def save_changes():
             new_patient = patient_entry.get().strip()
             new_doctor = doctor_entry.get().strip()
             new_schedule = schedule_entry.get().strip()
-            new_notes = notes_entry.get("1.0", "end").strip()
+            new_contact = contact_entry.get().strip()
+            new_address = address_entry.get().strip()
+            new_about = about_entry.get().strip()
+            new_notes_text = notes_entry.get("1.0", "end").strip()
 
             if not new_patient or not new_doctor or not new_schedule:
                 messagebox.showwarning("Validation", "Patient, doctor, and schedule are required.")
                 return
+
+            combined_parts = []
+            if new_contact:
+                combined_parts.append(f"Contact: {new_contact}")
+            if new_address:
+                combined_parts.append(f"Address: {new_address}")
+            if new_about:
+                combined_parts.append(f"About: {new_about}")
+            if new_notes_text:
+                combined_parts.append(f"Notes: {new_notes_text}")
+            new_notes = " | ".join(combined_parts) if combined_parts else None
 
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
@@ -431,7 +413,24 @@ class AdminRecordsPage(ctk.CTkFrame):
             self.reload_records()
 
         save_btn = ctk.CTkButton(win, text="Save", command=save_changes)
-        save_btn.grid(row=4, column=0, columnspan=2, pady=(20, 20))
+        save_btn.grid(row=7, column=0, columnspan=2, pady=(20, 20))
+
+    def _delete_record(self, record):
+        rid, patient, doctor, schedule, _notes, _is_paid, _amount_paid = record
+        confirm = messagebox.askyesno(
+            "Delete appointment",
+            f"Are you sure you want to delete appointment #{rid} for {patient} with {doctor}?",
+        )
+        if not confirm:
+            return
+
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM appointments WHERE id = ?", (rid,))
+        conn.commit()
+        conn.close()
+
+        self.reload_records()
 
 
     def export_csv(self):

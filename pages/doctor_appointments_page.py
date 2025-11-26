@@ -31,7 +31,7 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
 
         summary = ctk.CTkLabel(
             container,
-            text=f"Upcoming appointments for {self.doctor_name}",
+            text=f"Upcoming 2-hour appointments for {self.doctor_name}",
             font=("Segoe UI", 15, "bold"),
         )
         summary.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")

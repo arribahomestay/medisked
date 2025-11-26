@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
 
@@ -17,7 +18,7 @@ class MainApp(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Receptionist")
         self.geometry("1100x650")
-        self.resizable(True, True)
+        self.resizable(False, False)
 
         
         if getattr(sys, "frozen", False):
@@ -56,6 +57,7 @@ class MainApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
 
         self.sidebar = ReceptionistSidebar(
             self,
@@ -73,8 +75,16 @@ class MainApp(ctk.CTk):
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
+        # Bottom status bar
+        self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
+        self.status_frame.grid_columnconfigure(0, weight=1)
+        self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
+        self.status_label.grid(row=0, column=0, sticky="e")
+
         self.current_page = None
         self.show_appointment()
+        self._update_status_bar()
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
@@ -112,6 +122,13 @@ class MainApp(ctk.CTk):
         self.should_relogin = True
         
         self.destroy()
+
+    def _update_status_bar(self):
+        """Update the bottom status bar with username and current time every second."""
+
+        now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        self.status_label.configure(text=f"Medisked v1.0   |   User: {self.username}   |   {now_str}")
+        self.after(1000, self._update_status_bar)
 
 
 def main():

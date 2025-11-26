@@ -21,14 +21,14 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
         title.grid(row=0, column=0, padx=30, pady=(10, 4), sticky="w")
 
         content = ctk.CTkFrame(self, corner_radius=10)
-        content.grid(row=1, column=0, padx=30, pady=(0, 24), sticky="nsew")
+        content.grid(row=1, column=0, padx=30, pady=(0, 16), sticky="nsew")
         content.grid_columnconfigure(0, weight=1)
         # Row 2 (calendar) gets the extra vertical space; lower rows keep natural size
         content.grid_rowconfigure(2, weight=1)
 
         # Top row: doctor selector
         top_row = ctk.CTkFrame(content, fg_color="transparent")
-        top_row.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="ew")
+        top_row.grid(row=0, column=0, padx=16, pady=(8, 2), sticky="ew")
         top_row.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(top_row, text="Doctor").grid(row=0, column=0, padx=(0, 8), pady=4, sticky="w")
@@ -42,7 +42,7 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
 
         # Month navigation row
         controls = ctk.CTkFrame(content, fg_color="transparent")
-        controls.grid(row=1, column=0, padx=16, pady=(4, 0), sticky="ew")
+        controls.grid(row=1, column=0, padx=16, pady=(2, 0), sticky="ew")
         controls.grid_columnconfigure(1, weight=1)
 
         self.current_year = date.today().year
@@ -59,7 +59,7 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
 
         # Calendar grid
         self.calendar_frame = ctk.CTkFrame(content, corner_radius=10)
-        self.calendar_frame.grid(row=2, column=0, padx=16, pady=(8, 6), sticky="nsew")
+        self.calendar_frame.grid(row=2, column=0, padx=16, pady=(6, 4), sticky="nsew")
         for col in range(7):
             self.calendar_frame.grid_columnconfigure(col, weight=1)
 
@@ -70,11 +70,11 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
             font=("Segoe UI", 12, "bold"),
             anchor="w",
         )
-        self.day_detail_label.grid(row=3, column=0, padx=16, pady=(4, 4), sticky="w")
+        self.day_detail_label.grid(row=3, column=0, padx=16, pady=(2, 2), sticky="w")
 
-        # Smaller slots frame so calendar remains fully visible
-        self.slots_frame = ctk.CTkScrollableFrame(content, corner_radius=10, height=140)
-        self.slots_frame.grid(row=4, column=0, padx=16, pady=(0, 10), sticky="nsew")
+        # Slots frame sized so everything fits in the fixed main window
+        self.slots_frame = ctk.CTkScrollableFrame(content, corner_radius=10, height=120)
+        self.slots_frame.grid(row=4, column=0, padx=16, pady=(0, 6), sticky="nsew")
         self.slots_frame.grid_columnconfigure(0, weight=1)
 
         # Load doctors and initial calendar
@@ -211,7 +211,7 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
             self.day_detail_label.configure(text="Add a doctor first.")
             return
 
-        self.day_detail_label.configure(text=f"Date: {d_str} – configured time slots")
+        self.day_detail_label.configure(text=f"Date: {d_str} – configured time slots and bookings")
 
         conn = self._connect()
         cur = conn.cursor()
@@ -238,43 +238,83 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
             (doctor_id, d_str),
         )
         slots = cur.fetchall()
+
+        # Load booked appointments for this doctor and day
+        cur.execute(
+            """
+            SELECT patient_name, schedule
+            FROM appointments
+            WHERE doctor_name = ? AND DATE(schedule) = ?
+            ORDER BY DATETIME(schedule)
+            """,
+            (selected_doctor, d_str),
+        )
+        bookings = cur.fetchall()
         conn.close()
 
+        # Root layout: two side-by-side panels inside slots_frame
+        root = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
+        root.grid(row=0, column=0, sticky="nsew", padx=8, pady=8)
+        root.grid_columnconfigure(0, weight=1)
+        root.grid_columnconfigure(1, weight=1)
+
+        left_panel = ctk.CTkFrame(root, corner_radius=8)
+        left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 4))
+        left_panel.grid_columnconfigure(0, weight=1)
+
+        right_panel = ctk.CTkFrame(root, corner_radius=8)
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(4, 0))
+        right_panel.grid_columnconfigure(0, weight=1)
+
+        # Left header: time ranges
+        left_header = ctk.CTkLabel(left_panel, text="Time ranges", font=("Segoe UI", 11, "bold"), anchor="w")
+        left_header.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="w")
+
         if not slots:
-            lbl = ctk.CTkLabel(
-                self.slots_frame,
+            ctk.CTkLabel(
+                left_panel,
                 text="No configured time slots for this day.",
                 font=("Segoe UI", 11),
                 anchor="w",
-            )
-            lbl.grid(row=0, column=0, padx=8, pady=8, sticky="w")
-            return
+            ).grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+        else:
+            for idx, (start_t, end_t, max_appt, slot_len) in enumerate(slots, start=1):
+                row_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
+                row_frame.grid(row=idx, column=0, sticky="ew", padx=10, pady=2)
+                row_frame.grid_columnconfigure(0, weight=1)
 
-        header = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
-        header.grid(row=0, column=0, sticky="ew", padx=8, pady=(4, 2))
-        header.grid_columnconfigure(0, weight=1)
+                time_range_text = f"{start_t} - {end_t}"
+                ctk.CTkLabel(row_frame, text=time_range_text).grid(row=0, column=0, sticky="w")
 
-        ctk.CTkLabel(header, text="Time range", font=("Segoe UI", 11, "bold")).grid(row=0, column=0, sticky="w")
+        # Right header: booked appointments
+        right_header = ctk.CTkLabel(right_panel, text="Booked appointments", font=("Segoe UI", 11, "bold"), anchor="w")
+        right_header.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="w")
 
-        for idx, (start_t, end_t, max_appt, slot_len) in enumerate(slots, start=1):
-            row_frame = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
-            row_frame.grid(row=idx, column=0, sticky="ew", padx=8, pady=2)
-            row_frame.grid_columnconfigure(0, weight=1)
+        if not bookings:
+            ctk.CTkLabel(
+                right_panel,
+                text="No appointments booked for this day.",
+                font=("Segoe UI", 11),
+                anchor="w",
+            ).grid(row=1, column=0, padx=10, pady=(0, 10), sticky="w")
+        else:
+            from datetime import datetime as _dt, timedelta as _td
 
-            # Compute how many time slots this range represents
-            try:
-                from datetime import datetime as _dt
+            for idx, (patient_name, schedule_str) in enumerate(bookings, start=1):
+                try:
+                    start_dt = _dt.strptime(schedule_str, "%Y-%m-%d %H:%M")
+                    end_dt = start_dt + _td(hours=2)
+                    time_label = f"{start_dt.strftime('%I:%M %p')} - {end_dt.strftime('%I:%M %p')}"
+                except Exception:
+                    time_label = schedule_str
 
-                start_dt = _dt.strptime(f"{d_str} {start_t}", "%Y-%m-%d %H:%M")
-                end_dt = _dt.strptime(f"{d_str} {end_t}", "%Y-%m-%d %H:%M")
-                step = int(slot_len) if slot_len else 30
-                total_minutes = max(0, int((end_dt - start_dt).total_seconds() // 60))
-                num_slots = total_minutes // step if step > 0 else 0
-            except Exception:
-                step = slot_len or 30
-                num_slots = 0
+                text = f"{idx}. {time_label} · {patient_name}" if patient_name else f"{idx}. {time_label}"
 
-            time_range_text = f"{start_t} - {end_t}"
-
-            ctk.CTkLabel(row_frame, text=time_range_text).grid(row=0, column=0, sticky="w")
+                item = ctk.CTkLabel(
+                    right_panel,
+                    text=text,
+                    anchor="w",
+                    justify="left",
+                )
+                item.grid(row=idx, column=0, padx=10, pady=2, sticky="w")
 

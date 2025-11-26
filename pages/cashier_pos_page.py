@@ -379,7 +379,7 @@ class CashierPOSPage(ctk.CTkFrame):
             self.detail_labels["paid"].configure(text="Yes")
 
             # Create receipt folder and file
-            project_root = os.path.dirname(os.path.dirname(__file__))
+            project_root = os.path.dirname(os.path.abspath(DB_NAME))
             receipts_dir = os.path.join(project_root, "CASHIER_RECEIPT")
             os.makedirs(receipts_dir, exist_ok=True)
 

@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
 
@@ -14,9 +15,8 @@ class AdminDashboard(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Admin")
         self.geometry("1100x650")
-        self.resizable(True, True)
+        self.resizable(False, False)
 
-        # Window icon (works both in source run and PyInstaller EXE)
         if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS
         else:
@@ -33,7 +33,6 @@ class AdminDashboard(ctk.CTk):
         except Exception:
             pass
 
-        # Center window on screen
         self.update_idletasks()
         width = 1100
         height = 650
@@ -50,12 +49,12 @@ class AdminDashboard(ctk.CTk):
         self.profile_window = None
         self.account_menu = None
 
-        # Layout: 1 row, 2 columns (sidebar + content)
+        # Layout: content row + bottom status bar row
         self.grid_columnconfigure(0, weight=0)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=0)
 
-        # Sidebar
         self.sidebar = AdminSidebar(
             self,
             username=self.username,
@@ -67,15 +66,21 @@ class AdminDashboard(ctk.CTk):
         )
         self.sidebar.grid(row=0, column=0, sticky="nsw")
 
-        # Content area
         self.content = ctk.CTkFrame(self, corner_radius=0)
         self.content.grid(row=0, column=1, sticky="nsew")
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
-        # Lazy-import pages when needed
+        # Bottom status bar
+        self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
+        self.status_frame.grid_columnconfigure(0, weight=1)
+        self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
+        self.status_label.grid(row=0, column=0, sticky="e")
+
         self.current_page = None
         self.show_dashboard()
+        self._update_status_bar()
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
@@ -102,7 +107,6 @@ class AdminDashboard(ctk.CTk):
         self._set_page(page)
 
     def open_profile(self):
-        # Toggle small popup menu near avatar button
         if self.account_menu is not None and self.account_menu.winfo_exists():
             self.account_menu.destroy()
             self.account_menu = None
@@ -112,7 +116,6 @@ class AdminDashboard(ctk.CTk):
         self.account_menu.overrideredirect(True)
         self.account_menu.attributes("-topmost", True)
 
-        # Position next to the avatar button but keep inside main window
         self.account_menu.update_idletasks()
 
         bx = self.sidebar.avatar_button.winfo_rootx()
@@ -123,13 +126,11 @@ class AdminDashboard(ctk.CTk):
         desired_x = bx + bw + 8
         desired_y = by
 
-        # Bounds of the main admin window on the screen
         root_x = self.winfo_rootx()
         root_y = self.winfo_rooty()
         root_w = self.winfo_width()
         root_h = self.winfo_height()
 
-        # Clamp so the menu stays fully inside the window
         min_x = root_x
         max_x = root_x + max(root_w - width, 0)
         min_y = root_y
@@ -194,3 +195,10 @@ class AdminDashboard(ctk.CTk):
             return
         self.should_relogin = True
         self.destroy()
+
+    def _update_status_bar(self):
+        """Update the bottom status bar with username and current time every second."""
+
+        now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        self.status_label.configure(text=f"Medisked v1.0   |   User: {self.username}   |   {now_str}")
+        self.after(1000, self._update_status_bar)

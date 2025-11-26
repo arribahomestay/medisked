@@ -33,10 +33,8 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         title = ctk.CTkLabel(self, text="Doctor Profile", font=("Segoe UI", 20, "bold"))
         title.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Load current data
         self._load_data()
 
-        # Username
         user_label = ctk.CTkLabel(self, text="Username", font=("Segoe UI", 12))
         user_label.grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
 
@@ -44,7 +42,6 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         self.username_entry.insert(0, self.username_value or "")
         self.username_entry.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        # Name (doctor display name)
         name_label = ctk.CTkLabel(self, text="Name", font=("Segoe UI", 12))
         name_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
 
@@ -52,7 +49,6 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         self.name_entry.insert(0, self.name_value or "")
         self.name_entry.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        # Profession / specialty
         prof_label = ctk.CTkLabel(self, text="Profession", font=("Segoe UI", 12))
         prof_label.grid(row=5, column=0, padx=20, pady=(10, 0), sticky="w")
 
@@ -60,7 +56,6 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         self.prof_entry.insert(0, self.prof_value or "")
         self.prof_entry.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        # Password
         pwd_label = ctk.CTkLabel(self, text="Password", font=("Segoe UI", 12))
         pwd_label.grid(row=7, column=0, padx=20, pady=(10, 0), sticky="w")
 
@@ -81,13 +76,11 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
 
-        # Load from users
         cur.execute("SELECT username, password FROM users WHERE username = ?", (self.old_username,))
         row = cur.fetchone()
         if row:
             self.username_value, self.password_value = row
 
-        # Load from doctors
         if self.doctor_id is not None:
             cur.execute("SELECT name, specialty FROM doctors WHERE id = ?", (self.doctor_id,))
             row = cur.fetchone()
@@ -109,7 +102,6 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
 
-        # Ensure username is unique if changed
         if new_username != self.old_username:
             cur.execute("SELECT COUNT(*) FROM users WHERE username = ?", (new_username,))
             if cur.fetchone()[0] > 0:
@@ -117,7 +109,6 @@ class DoctorProfileWindow(ctk.CTkToplevel):
                 messagebox.showerror("Error", "Username already exists.")
                 return
 
-        # Get old doctor name for appointment updates
         old_doctor_name = None
         if self.doctor_id is not None:
             cur.execute("SELECT name FROM doctors WHERE id = ?", (self.doctor_id,))
@@ -125,20 +116,17 @@ class DoctorProfileWindow(ctk.CTkToplevel):
             if row:
                 old_doctor_name = row[0]
 
-        # Update users table (username + password)
         cur.execute(
             "UPDATE users SET username = ?, password = ? WHERE username = ?",
             (new_username, new_password, self.old_username),
         )
 
-        # Update doctors table (name + specialty)
         if self.doctor_id is not None:
             cur.execute(
                 "UPDATE doctors SET name = ?, specialty = ? WHERE id = ?",
                 (new_name, new_prof, self.doctor_id),
             )
 
-        # If doctor display name changed, update existing appointment records
         if old_doctor_name and new_name and new_name != old_doctor_name:
             cur.execute(
                 "UPDATE appointments SET doctor_name = ? WHERE doctor_name = ?",
