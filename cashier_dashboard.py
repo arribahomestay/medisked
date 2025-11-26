@@ -17,7 +17,7 @@ class CashierDashboard(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Cashier")
         self.geometry("1100x650")
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         # Window icon (works both in source run and PyInstaller EXE)
         if getattr(sys, "frozen", False):

@@ -27,7 +27,9 @@ class DoctorManagePage(ctk.CTkFrame):
         content = ctk.CTkFrame(self, corner_radius=10)
         content.grid(row=1, column=0, padx=30, pady=(0, 24), sticky="nsew")
         content.grid_columnconfigure(0, weight=1)
-        content.grid_rowconfigure(1, weight=1)
+        # Row 1: calendar row (fixed height-ish), Row 2: day detail + slots (flex/scroll)
+        content.grid_rowconfigure(1, weight=0)
+        content.grid_rowconfigure(2, weight=1)
 
         # Month controls
         controls = ctk.CTkFrame(content, fg_color="transparent")
@@ -48,15 +50,16 @@ class DoctorManagePage(ctk.CTkFrame):
 
         # Calendar grid
         self.calendar_frame = ctk.CTkFrame(content, corner_radius=10)
-        # Tighter vertical padding so calendar has more room above day details
-        self.calendar_frame.grid(row=1, column=0, padx=10, pady=(8, 4), sticky="nsew")
+        # Calendar keeps a consistent height; lower panel is what flexes/scrolls.
+        self.calendar_frame.grid(row=1, column=0, padx=10, pady=(8, 4), sticky="ew")
         for col in range(7):
             self.calendar_frame.grid_columnconfigure(col, weight=1)
 
-        # Day detail (very compact so calendar stays fully visible)
+        # Day detail + time slots; this section takes remaining height and can scroll
         self.day_detail_frame = ctk.CTkFrame(content, corner_radius=10)
-        self.day_detail_frame.grid(row=2, column=0, padx=10, pady=(2, 8), sticky="ew")
+        self.day_detail_frame.grid(row=2, column=0, padx=10, pady=(2, 8), sticky="nsew")
         self.day_detail_frame.grid_columnconfigure(0, weight=1)
+        self.day_detail_frame.grid_rowconfigure(2, weight=1)
 
         self.selected_date = None
 
@@ -275,12 +278,16 @@ class DoctorManagePage(ctk.CTkFrame):
             cur = conn.cursor()
             month_start = f"{self.current_year:04d}-{self.current_month:02d}-01"
             month_end = f"{self.current_year:04d}-{self.current_month:02d}-31"
+            # Only day-level records (start_time IS NULL) control whether a day
+            # is explicitly marked available or not. If there is no such row,
+            # we treat the day as available by default.
             cur.execute(
                 """
                 SELECT date, is_available
                 FROM doctor_availability
-                WHERE doctor_id = ? AND date BETWEEN ? AND ?
-                GROUP BY date
+                WHERE doctor_id = ?
+                  AND date BETWEEN ? AND ?
+                  AND start_time IS NULL
                 """,
                 (self.doctor_id, month_start, month_end),
             )
@@ -367,27 +374,47 @@ class DoctorManagePage(ctk.CTkFrame):
         )
         add_slot_btn.grid(row=0, column=1, padx=(0, 0), pady=5, sticky="e")
 
-        # Fixed-height scrollable frame so it doesn't grow too tall
-        self.slots_frame = ctk.CTkScrollableFrame(self.day_detail_frame, corner_radius=10, height=90)
+        # Scrollable frame for time slots; grows with available space inside
+        self.slots_frame = ctk.CTkScrollableFrame(self.day_detail_frame, corner_radius=10)
         self.slots_frame.grid(row=2, column=0, padx=10, pady=(2, 6), sticky="nsew")
         self.slots_frame.grid_columnconfigure(0, weight=1)
 
         self._load_day_data(d_str)
 
-    def _load_day_data(self, d_str: str):
+    def _load_day_data(self, d_str: str, update_switch: bool = True):
         if self.doctor_id is None:
             return
 
         conn = self._connect()
         cur = conn.cursor()
 
+        # Look only at the day-level availability flag (start_time IS NULL).
         cur.execute(
-            "SELECT is_available FROM doctor_availability WHERE doctor_id = ? AND date = ? GROUP BY date",
+            """
+            SELECT is_available
+            FROM doctor_availability
+            WHERE doctor_id = ? AND date = ? AND start_time IS NULL
+            ORDER BY id DESC LIMIT 1
+            """,
             (self.doctor_id, d_str),
         )
         row = cur.fetchone()
+        # If there is no day-level row, treat the day as available by default.
         is_available = 1 if row is None else row[0]
-        self.day_status_switch.select() if is_available == 1 else self.day_status_switch.deselect()
+        if update_switch:
+            # Only change the visual state of the switch when we are not
+            # already inside its own callback, to avoid re-entrant drawing
+            # errors from CustomTkinter.
+            if is_available == 1:
+                try:
+                    self.day_status_switch.select()
+                except Exception:
+                    pass
+            else:
+                try:
+                    self.day_status_switch.deselect()
+                except Exception:
+                    pass
 
         cur.execute(
             """
@@ -400,15 +427,73 @@ class DoctorManagePage(ctk.CTkFrame):
         )
         slots = cur.fetchall()
 
-        for child in self.slots_frame.winfo_children():
+        # If the day is available but has no explicit time slots yet, create a
+        # default 09:00–17:00 duty window so every doctor starts with a usable
+        # schedule that they can later edit.
+        if is_available == 1 and not slots:
+            try:
+                default_start = "09:00"
+                default_end = "17:00"
+                default_slot_len = 30
+                default_max_appt = 1
+
+                cur.execute(
+                    """
+                    INSERT INTO doctor_availability
+                    (doctor_id, date, start_time, end_time, is_available, max_appointments, slot_length_minutes)
+                    VALUES (?, ?, ?, ?, 1, ?, ?)
+                    """,
+                    (self.doctor_id, d_str, default_start, default_end, default_max_appt, default_slot_len),
+                )
+                conn.commit()
+
+                cur.execute(
+                    """
+                    SELECT id, start_time, end_time, max_appointments, slot_length_minutes
+                    FROM doctor_availability
+                    WHERE doctor_id = ? AND date = ? AND is_available = 1 AND start_time IS NOT NULL
+                    ORDER BY start_time
+                    """,
+                    (self.doctor_id, d_str),
+                )
+                slots = cur.fetchall()
+            except Exception:
+                # If anything goes wrong creating the default slot, just fall
+                # back to showing an empty list; doctor can still add slots.
+                slots = []
+
+        # If the slots frame was destroyed (e.g., while switching pages),
+        # avoid touching it to prevent Tkinter "bad window path name" errors.
+        if not hasattr(self, "slots_frame"):
+            return
+        try:
+            children = list(self.slots_frame.winfo_children())
+        except Exception:
+            return
+
+        for child in children:
             child.destroy()
+
+        def _fmt_12h(t: str) -> str:
+            try:
+                from datetime import datetime as _dt
+
+                dt = _dt.strptime(t, "%H:%M")
+                return dt.strftime("%I:%M %p").lstrip("0")
+            except Exception:
+                return t
+
+        # If the day is marked NOT available, do not show any slots and keep
+        # controls effectively read-only.
+        if is_available == 0:
+            return
 
         for idx, (sid, start_t, end_t, max_appt, slot_len) in enumerate(slots):
             row_frame = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
             row_frame.grid(row=idx, column=0, sticky="ew", pady=2)
             row_frame.grid_columnconfigure(0, weight=1)
 
-            info_text = f"{start_t} - {end_t}"
+            info_text = f"{_fmt_12h(start_t)} - {_fmt_12h(end_t)}"
 
             lbl = ctk.CTkLabel(row_frame, text=info_text, anchor="w")
             lbl.grid(row=0, column=0, sticky="ew")
@@ -447,6 +532,10 @@ class DoctorManagePage(ctk.CTkFrame):
         conn.close()
 
         self._refresh_calendar()
+        # Reload this day's data so the slots area and controls reflect the
+        # new availability (including creating/removing default slots), but
+        # do not update the switch state again while its callback is running.
+        self._load_day_data(self.selected_date, update_switch=False)
 
     def _open_add_slot(self):
         if self.selected_date is None or self.doctor_id is None:

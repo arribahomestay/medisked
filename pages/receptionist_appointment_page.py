@@ -989,6 +989,12 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         )
         ranges = cur.fetchall()
 
+        # If the doctor has no explicit availability ranges for this day but the
+        # day is not marked unavailable, treat it as a default 09:0000 window
+        # so that the receptionist can still honor the standard working hours.
+        if not ranges:
+            ranges = [("09:00", "17:00")]
+
         fits_in_range = False
         for start_t, end_t in ranges:
             try:
@@ -1138,6 +1144,12 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         )
 
         windows = cur.fetchall()
+
+        # If the doctor has not configured explicit slots for this day, fall
+        # back to a default 09:0000 duty window so receptionists can still
+        # book standard 2-hour appointments.
+        if not windows:
+            windows = [("09:00", "17:00", 1, None)]
 
         from datetime import timedelta as _td
 

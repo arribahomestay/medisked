@@ -15,7 +15,7 @@ class DoctorDashboard(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Doctor")
         self.geometry("1100x650")
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         # Window icon
         base_dir = os.path.dirname(__file__)

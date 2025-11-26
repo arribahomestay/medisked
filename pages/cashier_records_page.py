@@ -85,39 +85,13 @@ class CashierRecordsPage(ctk.CTkFrame):
 
         table_container = ctk.CTkFrame(self, corner_radius=10)
         table_container.grid(row=1, column=0, padx=30, pady=(0, 30), sticky="nsew")
-        table_container.grid_rowconfigure(1, weight=1)
+        table_container.grid_rowconfigure(0, weight=1)
         table_container.grid_columnconfigure(0, weight=1)
 
-        header_row = ctk.CTkFrame(table_container, fg_color="transparent")
-        header_row.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
-        header_row.grid_columnconfigure(0, weight=1)
-        header_row.grid_columnconfigure(1, weight=1)
-        header_row.grid_columnconfigure(2, weight=1)
-        header_row.grid_columnconfigure(3, weight=1)
-        header_row.grid_columnconfigure(4, weight=1)
-        header_row.grid_columnconfigure(5, weight=1)
-        header_row.grid_columnconfigure(6, weight=1)
-        header_row.grid_columnconfigure(7, weight=1)
-
-        ctk.CTkLabel(header_row, text="ID", font=("Segoe UI", 13, "bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(header_row, text="Patient", font=("Segoe UI", 13, "bold")).grid(row=0, column=1, sticky="w")
-        ctk.CTkLabel(header_row, text="Doctor", font=("Segoe UI", 13, "bold")).grid(row=0, column=2, sticky="w")
-        ctk.CTkLabel(header_row, text="Schedule", font=("Segoe UI", 13, "bold")).grid(row=0, column=3, sticky="w")
-        ctk.CTkLabel(header_row, text="Total", font=("Segoe UI", 13, "bold")).grid(row=0, column=4, sticky="w")
-        ctk.CTkLabel(header_row, text="Amount paid", font=("Segoe UI", 13, "bold")).grid(row=0, column=5, sticky="w")
-        ctk.CTkLabel(header_row, text="Paid?", font=("Segoe UI", 13, "bold")).grid(row=0, column=6, sticky="w")
-        ctk.CTkLabel(header_row, text="Actions", font=("Segoe UI", 13, "bold")).grid(row=0, column=7, sticky="w")
-
+        # Scrollable list of "folder" style records instead of a column table.
         self.table_frame = ctk.CTkScrollableFrame(table_container, corner_radius=10)
-        self.table_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(5, 10))
+        self.table_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=(10, 10))
         self.table_frame.grid_columnconfigure(0, weight=1)
-        self.table_frame.grid_columnconfigure(1, weight=1)
-        self.table_frame.grid_columnconfigure(2, weight=1)
-        self.table_frame.grid_columnconfigure(3, weight=1)
-        self.table_frame.grid_columnconfigure(4, weight=1)
-        self.table_frame.grid_columnconfigure(5, weight=1)
-        self.table_frame.grid_columnconfigure(6, weight=1)
-        self.table_frame.grid_columnconfigure(7, weight=1)
 
         self.records = []
         self.reload_records()
@@ -157,52 +131,81 @@ class CashierRecordsPage(ctk.CTkFrame):
         self.clear_table()
         filtered = self.get_filtered_records()
 
+        if not filtered:
+            empty = ctk.CTkLabel(
+                self.table_frame,
+                text="No records found.",
+                font=("Segoe UI", 13),
+                anchor="w",
+            )
+            empty.grid(row=0, column=0, padx=12, pady=10, sticky="w")
+            return
+
         for row_index, rec in enumerate(filtered):
             rid, patient, doctor, schedule, amount_paid, is_paid, barcode, notes = rec
 
-            ctk.CTkLabel(self.table_frame, text=str(rid), anchor="center").grid(
-                row=row_index, column=0, sticky="nsew", padx=(0, 5), pady=2
-            )
-            ctk.CTkLabel(self.table_frame, text=patient, anchor="center").grid(
-                row=row_index, column=1, sticky="nsew", padx=(0, 5), pady=2
-            )
-            ctk.CTkLabel(self.table_frame, text=doctor, anchor="center").grid(
-                row=row_index, column=2, sticky="nsew", padx=(0, 5), pady=2
-            )
-            ctk.CTkLabel(self.table_frame, text=self._format_schedule_short(schedule), anchor="center").grid(
-                row=row_index, column=3, sticky="nsew", padx=(0, 5), pady=2
-            )
+            # Card-style container for each record; use the same dark gray
+            # background as other cards in the system (#111827) so the theme
+            # stays consistent.
+            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8, fg_color="#111827")
+            row_frame.grid(row=row_index, column=0, sticky="ew", padx=4, pady=3)
+            row_frame.grid_columnconfigure(0, weight=1)
+            row_frame.grid_columnconfigure(1, weight=0)
 
+            # Prepare summary values
+            pretty_schedule = self._format_schedule(schedule)
             total_value = self._extract_total_from_notes(notes)
             total_text = f"₱{total_value:,.2f}" if total_value is not None else "-"
-            ctk.CTkLabel(self.table_frame, text=total_text, anchor="center").grid(
-                row=row_index, column=4, sticky="nsew", padx=(0, 5), pady=2
-            )
-
             amt_text = f"₱{amount_paid:,.2f}" if amount_paid else "-"
-            ctk.CTkLabel(self.table_frame, text=amt_text, anchor="center").grid(
-                row=row_index, column=5, sticky="nsew", padx=(0, 5), pady=2
-            )
-
-            paid_text = "Yes" if is_paid else "No"
+            paid_text = "PAID" if is_paid else "UNPAID"
             paid_color = "#16a34a" if is_paid else "#dc2626"
-            ctk.CTkLabel(self.table_frame, text=paid_text, anchor="center", text_color=paid_color).grid(
-                row=row_index, column=6, sticky="nsew", padx=(0, 5), pady=2
-            )
 
-            actions_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
-            actions_frame.grid(row=row_index, column=7, sticky="e", padx=(0, 5), pady=2)
+            # Top row: ID + schedule + status chip
+            top = ctk.CTkFrame(row_frame, fg_color="transparent")
+            top.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 2))
+            top.grid_columnconfigure(0, weight=1)
+
+            title_text = f"#{rid} · {pretty_schedule}"
+            title_lbl = ctk.CTkLabel(top, text=title_text, font=("Segoe UI", 12, "bold"), anchor="w")
+            title_lbl.grid(row=0, column=0, sticky="w")
+
+            # Second row: patient and doctor
+            who_text = f"{patient or '(No patient)'} with {doctor or '(No doctor)'}"
+            who_lbl = ctk.CTkLabel(row_frame, text=who_text, font=("Segoe UI", 12), anchor="w")
+            who_lbl.grid(row=1, column=0, sticky="w", padx=10)
+
+            # Third row: totals
+            amounts_text = f"Total: {total_text}   ·   Amount paid: {amt_text}"
+            amounts_lbl = ctk.CTkLabel(row_frame, text=amounts_text, font=("Segoe UI", 11), anchor="w")
+            amounts_lbl.grid(row=2, column=0, sticky="w", padx=10, pady=(0, 6))
+
+            # Actions on the right: status pill + VIEW button aligned together
+            actions_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            actions_frame.grid(row=0, column=1, rowspan=3, sticky="e", padx=10, pady=6)
+
+            status_chip = ctk.CTkLabel(
+                actions_frame,
+                text=paid_text,
+                font=("Segoe UI", 11, "bold"),
+                fg_color=paid_color,
+                corner_radius=999,
+                width=72,
+                anchor="center",
+                padx=10,
+                pady=2,
+            )
+            status_chip.grid(row=0, column=0, padx=(0, 8), pady=0, sticky="e")
 
             view_btn = ctk.CTkButton(
                 actions_frame,
                 text="VIEW",
-                width=50,
-                height=24,
+                width=70,
+                height=26,
                 fg_color="#0d74d1",
                 hover_color="#0b63b3",
                 command=lambda r=rec: self._view_details(r),
             )
-            view_btn.grid(row=0, column=0)
+            view_btn.grid(row=0, column=1, padx=(0, 0), pady=0, sticky="e")
 
     def _view_details(self, record):
         rid, patient, doctor, schedule, amount_paid, is_paid, barcode, notes = record

@@ -15,7 +15,7 @@ class AdminDashboard(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Admin")
         self.geometry("1100x650")
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS

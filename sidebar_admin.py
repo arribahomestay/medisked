@@ -23,14 +23,6 @@ class AdminSidebar(ctk.CTkFrame):
         )
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Username row
-        self.user_label = ctk.CTkLabel(
-            self,
-            text=username,
-            font=("Segoe UI", 12),
-        )
-        self.user_label.grid(row=1, column=0, padx=20, pady=(0, 16), sticky="w")
-
         self.dashboard_button = ctk.CTkButton(
             self,
             text="DASHBOARD",

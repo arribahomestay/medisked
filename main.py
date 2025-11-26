@@ -18,7 +18,7 @@ class MainApp(ctk.CTk):
 
         self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Receptionist")
         self.geometry("1100x650")
-        self.resizable(False, False)
+        self.resizable(True, True)
 
         
         if getattr(sys, "frozen", False):
@@ -134,6 +134,7 @@ class MainApp(ctk.CTk):
         if not messagebox.askyesno("Confirm Logout", "Are you sure you want to logout?"):
             return
         self.should_relogin = True
+        
         
         self.destroy()
 
