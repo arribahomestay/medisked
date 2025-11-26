@@ -169,24 +169,13 @@ class DoctorManagePage(ctk.CTkFrame):
         end_period_combo.set(e_p)
         end_period_combo.grid(row=0, column=2, padx=(5, 0), sticky="w")
 
-        ctk.CTkLabel(win, text="Slot length (minutes)").grid(row=2, column=0, padx=20, pady=5, sticky="w")
-        slot_len_entry = ctk.CTkEntry(win)
-        slot_len_entry.insert(0, str(slot_len or 30))
-        slot_len_entry.grid(row=2, column=1, padx=20, pady=5, sticky="ew")
-
-        # Slot count for this time range
-        ctk.CTkLabel(win, text="Slot:").grid(row=3, column=0, padx=20, pady=(5, 0), sticky="w")
-        slot_count_entry = ctk.CTkEntry(win)
-        slot_count_entry.insert(0, "1" if max_appt is None else str(max_appt))
-        slot_count_entry.grid(row=3, column=1, padx=20, pady=(5, 2), sticky="ew")
-
         # Indicator: how many appointments already booked in this time range
         booked_label = ctk.CTkLabel(
             win,
             text=f"Booked in this time range: {booked_count}",
             anchor="w",
         )
-        booked_label.grid(row=4, column=0, columnspan=2, padx=20, pady=(0, 8), sticky="w")
+        booked_label.grid(row=2, column=0, columnspan=2, padx=20, pady=(10, 8), sticky="w")
 
         def _to_24h(hour_str: str, minute_str: str, period: str) -> str:
             try:
@@ -207,33 +196,14 @@ class DoctorManagePage(ctk.CTkFrame):
         def save_changes():
             new_start = _to_24h(start_hour_combo.get(), start_min_combo.get(), start_period_combo.get())
             new_end = _to_24h(end_hour_combo.get(), end_min_combo.get(), end_period_combo.get())
-            slot_len_str = slot_len_entry.get().strip()
-            slot_count_str = slot_count_entry.get().strip()
 
             if not new_start or not new_end:
                 win.destroy()
                 return
 
-            # Validate numbers
-            if not slot_len_str.isdigit() or int(slot_len_str) <= 0:
-                messagebox.showerror("Slot length", "Slot length must be a positive number of minutes.")
-                return
-            slot_len_val = int(slot_len_str)
+            # Only update the start and end time; keep existing slot length and max appointments.
 
-            if not slot_count_str.isdigit() or int(slot_count_str) <= 0:
-                messagebox.showerror("Slots", "Slot count must be a positive whole number.")
-                return
-            requested_slots = int(slot_count_str)
-
-            # Do not allow decreasing slots: doctor can only increase or keep the same
-            if max_appt is not None and requested_slots < max_appt:
-                messagebox.showerror(
-                    "Slots",
-                    f"You currently have {max_appt} slots. You can only increase this number, not decrease it.",
-                )
-                return
-
-            # Check that the requested slots fit in the time range
+            # Check that the new time range is valid
             from datetime import datetime as _dt
 
             try:
@@ -243,24 +213,8 @@ class DoctorManagePage(ctk.CTkFrame):
                 messagebox.showerror("Time", "Invalid start or end time.")
                 return
 
-            total_minutes = max(0, int((end_dt - start_dt).total_seconds() // 60))
-            if total_minutes <= 0:
+            if end_dt <= start_dt:
                 messagebox.showerror("Time", "End time must be after start time.")
-                return
-
-            max_slots_possible = total_minutes // slot_len_val
-            if max_slots_possible <= 0:
-                messagebox.showerror(
-                    "Slots",
-                    "Time range is too short for even 1 slot with the chosen duration.",
-                )
-                return
-
-            if requested_slots > max_slots_possible:
-                messagebox.showerror(
-                    "Slots",
-                    f"Not enough time for {requested_slots} slots. Maximum possible is {max_slots_possible}",
-                )
                 return
 
             conn = self._connect()
@@ -268,10 +222,10 @@ class DoctorManagePage(ctk.CTkFrame):
             cur.execute(
                 """
                 UPDATE doctor_availability
-                SET start_time = ?, end_time = ?, slot_length_minutes = ?, max_appointments = ?
+                SET start_time = ?, end_time = ?
                 WHERE id = ?
                 """,
-                (new_start, new_end, slot_len_val, requested_slots, slot_id),
+                (new_start, new_end, slot_id),
             )
             conn.commit()
             conn.close()
@@ -281,7 +235,7 @@ class DoctorManagePage(ctk.CTkFrame):
             self._refresh_calendar()
 
         save_btn = ctk.CTkButton(win, text="Save", command=save_changes)
-        save_btn.grid(row=5, column=0, columnspan=2, pady=(16, 20))
+        save_btn.grid(row=3, column=0, columnspan=2, pady=(16, 20))
 
     def _connect(self):
         return sqlite3.connect(DB_NAME)
@@ -580,17 +534,6 @@ class DoctorManagePage(ctk.CTkFrame):
         end_period_combo.set("PM")
         end_period_combo.grid(row=0, column=2, padx=(5, 0), sticky="w")
 
-        ctk.CTkLabel(win, text="Slot length (minutes)").grid(row=2, column=0, padx=20, pady=5, sticky="w")
-        slot_len_entry = ctk.CTkEntry(win)
-        slot_len_entry.insert(0, "30")
-        slot_len_entry.grid(row=2, column=1, padx=20, pady=5, sticky="ew")
-
-        # Slot count entered by doctor (intended number of 30-min appointments for this range)
-        ctk.CTkLabel(win, text="Slot:").grid(row=3, column=0, padx=20, pady=(5, 0), sticky="w")
-        max_appt_entry = ctk.CTkEntry(win)
-        max_appt_entry.insert(0, "1")
-        max_appt_entry.grid(row=3, column=1, padx=20, pady=(5, 8), sticky="ew")
-
         def _to_24h(hour_str: str, minute_str: str, period: str) -> str:
             try:
                 h = int(hour_str)
@@ -614,23 +557,14 @@ class DoctorManagePage(ctk.CTkFrame):
             end_t = _to_24h(
                 end_hour_combo.get(), end_min_combo.get(), end_period_combo.get()
             )
-            slot_len = slot_len_entry.get().strip()
-            slot_count_str = max_appt_entry.get().strip()
 
             if not start_t or not end_t:
                 win.destroy()
                 return
 
-            # Basic validation for inputs
-            if not slot_len.isdigit() or int(slot_len) <= 0:
-                messagebox.showerror("Slot length", "Slot length must be a positive number of minutes.")
-                return
-            slot_len_val = int(slot_len)
-
-            if not slot_count_str.isdigit() or int(slot_count_str) <= 0:
-                messagebox.showerror("Slots", "Slot count must be a positive whole number.")
-                return
-            requested_slots = int(slot_count_str)
+            # Use fixed defaults for simplicity
+            slot_len_val = 30
+            requested_slots = 1
 
             # Compute how many slots actually fit in the selected time range
             from datetime import datetime as _dt
@@ -655,10 +589,11 @@ class DoctorManagePage(ctk.CTkFrame):
                 )
                 return
 
+            # Even with fixed defaults, ensure at least one slot fits
             if requested_slots > max_slots_possible:
                 messagebox.showerror(
                     "Slots",
-                    f"Not enough time for {requested_slots} slots. Maximum possible is {max_slots_possible}",
+                    f"Not enough time for the default number of slots. Maximum possible is {max_slots_possible}",
                 )
                 return
 
@@ -684,7 +619,7 @@ class DoctorManagePage(ctk.CTkFrame):
             self._refresh_calendar()
 
         save_btn = ctk.CTkButton(win, text="Save", command=save_slot)
-        save_btn.grid(row=4, column=0, columnspan=2, pady=(16, 20))
+        save_btn.grid(row=2, column=0, columnspan=2, pady=(16, 20))
 
     def _delete_slot(self, slot_id: int):
         conn = self._connect()

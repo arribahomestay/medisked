@@ -179,58 +179,9 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self.next_date_button = ctk.CTkButton(date_row, text=">", width=28, command=self._next_date)
         self.next_date_button.grid(row=0, column=2, padx=(4, 0))
 
-        # Time slots
-        ctk.CTkLabel(form, text="Available time slots").grid(row=9, column=0, padx=20, pady=4, sticky="nw")
-
-        # Legend + slots container
-        slots_container = ctk.CTkFrame(form, corner_radius=8)
-        slots_container.grid(row=9, column=1, padx=20, pady=4, sticky="nsew")
-        # Row 2 (slots_frame) grows; other rows keep natural size
-        slots_container.grid_rowconfigure(2, weight=1)
-        slots_container.grid_columnconfigure(0, weight=1)
-
-        legend_frame = ctk.CTkFrame(slots_container, corner_radius=8, fg_color="transparent")
-        legend_frame.grid(row=0, column=0, padx=8, pady=(8, 0), sticky="w")
-
-        def _legend_item(parent, color, text):
-            box = ctk.CTkLabel(parent, text="", width=14, height=14, fg_color=color, corner_radius=4)
-            box.pack(side="left", padx=(0, 4))
-            lbl = ctk.CTkLabel(parent, text=text, font=("Segoe UI", 11))
-            lbl.pack(side="left", padx=(0, 10))
-
-        _legend_item(legend_frame, "#0d74d1", "Available")
-        _legend_item(legend_frame, "#f97316", "Almost full")
-        _legend_item(legend_frame, "#555555", "Full")
-
-        # Small helper text to explain slot logic
-        info_label = ctk.CTkLabel(
-            slots_container,
-            text=(
-                ""
-                ""
-            ),
-            font=("Segoe UI", 10),
-            anchor="w",
-            justify="left",
-        )
-        info_label.grid(row=1, column=0, padx=8, pady=(2, 4), sticky="w")
-
-        self.slots_frame = ctk.CTkFrame(slots_container, corner_radius=8)
-        self.slots_frame.grid(row=2, column=0, padx=8, pady=(4, 4), sticky="nsew")
-        self.slots_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
-
-        # Selected slot summary
-        self.slot_summary_label = ctk.CTkLabel(
-            slots_container,
-            text="No time selected.",
-            font=("Segoe UI", 11),
-            anchor="w",
-        )
-        self.slot_summary_label.grid(row=3, column=0, padx=8, pady=(0, 8), sticky="ew")
-
-        # Action buttons row (right-aligned)
+        # Action buttons row (right-aligned), placed directly below the Date row.
         actions_row = ctk.CTkFrame(form, fg_color="transparent")
-        actions_row.grid(row=10, column=0, columnspan=2, padx=20, pady=(16, 20), sticky="e")
+        actions_row.grid(row=9, column=0, columnspan=2, padx=20, pady=(8, 20), sticky="e")
         actions_row.grid_columnconfigure(0, weight=0)
         actions_row.grid_columnconfigure(1, weight=0)
 
@@ -252,6 +203,18 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         )
         save_btn.grid(row=0, column=1, padx=(0, 0), pady=0, sticky="e")
 
+        # Time is auto-assigned; keep an invisible frame so other logic can safely clear it,
+        # but place it below the action buttons so it doesn't create extra visual space.
+        dummy_container = ctk.CTkFrame(form, corner_radius=8, fg_color="transparent")
+        dummy_container.grid(row=10, column=0, columnspan=2, padx=20, pady=0, sticky="nsew")
+        dummy_container.grid_columnconfigure(0, weight=1)
+
+        self.slots_frame = ctk.CTkFrame(dummy_container, corner_radius=8, fg_color="transparent")
+        self.slots_frame.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
+
+        # Selected_schedule is no longer chosen by clicking a time slot; it will be
+        # computed automatically when saving the appointment based on the first
+        # available slot on the chosen day.
         self.selected_schedule = None
         self._selected_slot_btn = None
         self.available_dates = []
@@ -348,8 +311,6 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
             child.destroy()
         self.selected_schedule = None
         self._selected_slot_btn = None
-        if hasattr(self, "slot_summary_label"):
-            self.slot_summary_label.configure(text="No time selected.")
 
     def _clear_form(self):
         """Clear all fields on the appointment form."""
@@ -679,13 +640,11 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self._set_date_from_index()
 
     def _load_slots(self):
-        # Clear existing buttons
+        # No longer showing individual time slots; just clear any previous content.
         for child in self.slots_frame.winfo_children():
             child.destroy()
         self.selected_schedule = None
         self._selected_slot_btn = None
-        if hasattr(self, "slot_summary_label"):
-            self.slot_summary_label.configure(text="No time selected.")
 
         date_str = self.date_entry.get().strip()
         filter_by_date = bool(date_str)
@@ -738,113 +697,108 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
 
         slots = cur.fetchall()
 
-        row_idx = 0
-        col_idx = 0
-        any_button = False
+        # We no longer render individual slot buttons here; this method is
+        # retained only so that date navigation and availability queries keep
+        # working. Actual selection of a concrete time happens inside
+        # _find_first_available_schedule.
 
-        for doctor, day_str, start_t, end_t, max_appt, slot_len in slots:
+        conn.close()
+
+        # We no longer render slots here; availability will be checked when saving.
+
+    def _find_first_available_schedule(self, doctor: str, date_str: str):
+        """Return the earliest free schedule for a doctor on a given date.
+
+        Looks at doctor_availability for that doctor and day, then walks each
+        configured time range in slot-length steps. The first time with no
+        appointment in the appointments table is returned as (schedule_str, dt).
+        If none are available, returns (None, None).
+        """
+
+        if not doctor or not date_str:
+            return None, None
+
+        # Do not allow booking in the past
+        try:
+            chosen_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return None, None
+
+        if chosen_date < date.today():
+            return None, None
+
+        conn = self._connect()
+        cur = conn.cursor()
+
+        # Confirm the doctor is active and get id
+        cur.execute("SELECT id FROM doctors WHERE name = ? AND status = 'active'", (doctor,))
+        row = cur.fetchone()
+        if row is None:
+            conn.close()
+            return None, None
+        doctor_id = row[0]
+
+        # Ensure the day is not explicitly marked unavailable
+        cur.execute(
+            """
+            SELECT is_available FROM doctor_availability
+            WHERE doctor_id = ? AND date = ? AND start_time IS NULL
+            ORDER BY id DESC LIMIT 1
+            """,
+            (doctor_id, date_str),
+        )
+        row = cur.fetchone()
+        if row is not None and row[0] == 0:
+            conn.close()
+            return None, None
+
+        # Fetch all configured availability ranges for that day
+        cur.execute(
+            """
+            SELECT start_time, end_time, max_appointments, slot_length_minutes
+            FROM doctor_availability
+            WHERE doctor_id = ? AND date = ? AND is_available = 1 AND start_time IS NOT NULL
+            ORDER BY start_time
+            """,
+            (doctor_id, date_str),
+        )
+        ranges = cur.fetchall()
+
+        for start_t, end_t, max_appt, slot_len in ranges:
             try:
-                start_dt = datetime.strptime(f"{day_str} {start_t}", "%Y-%m-%d %H:%M")
-                end_dt = datetime.strptime(f"{day_str} {end_t}", "%Y-%m-%d %H:%M")
+                start_dt = datetime.strptime(f"{date_str} {start_t}", "%Y-%m-%d %H:%M")
+                end_dt = datetime.strptime(f"{date_str} {end_t}", "%Y-%m-%d %H:%M")
             except ValueError:
                 continue
 
-            step = int(slot_len) if slot_len else 30
+            # Step by configured slot length, defaulting to 30 minutes
+            step_minutes = int(slot_len) if slot_len else 30
+            if step_minutes <= 0:
+                step_minutes = 30
+
             current = start_dt
             while current < end_dt:
-                slot_end_dt = current + timedelta(minutes=step)
+                slot_end_dt = current + timedelta(minutes=step_minutes)
                 if slot_end_dt > end_dt:
                     slot_end_dt = end_dt
 
                 schedule_str = current.strftime("%Y-%m-%d %H:%M")
 
-                # Check existing appointments for this exact time
+                # Each slot represents capacity 1 in this simplified model.
                 cur.execute(
                     "SELECT COUNT(*) FROM appointments WHERE doctor_name = ? AND schedule = ?",
                     (doctor, schedule_str),
                 )
                 count = cur.fetchone()[0]
 
-                pretty_start = current.strftime("%I:%M %p")
-                pretty_end = slot_end_dt.strftime("%I:%M %p")
-                # Treat each slot as exactly one appointment: max_appt is effectively 1
-                max_appt_effective = 1
-                full = count >= max_appt_effective
-                remaining = max(0, max_appt_effective - count)
+                if count < 1:
+                    conn.close()
+                    return schedule_str, current
 
-                # Color based on remaining capacity
-                if full:
-                    fg = "#555555"
-                    hover = "#555555"
-                elif remaining is not None and remaining <= 1:
-                    fg = "#f97316"  # almost full
-                    hover = "#ea580c"
-                else:
-                    fg = "#0d74d1"  # available
-                    hover = "#0b63b3"
-
-                # Build label text as a time range, including remaining slots info when available
-                range_text = f"{pretty_start} - {pretty_end}"
-                if filter_by_date:
-                    base_text = range_text
-                else:
-                    base_text = f"{day_str} {range_text}"
-
-                if remaining is not None:
-                    label_text = f"{base_text}  (Remaining: {remaining}/1)"
-                else:
-                    label_text = base_text
-
-                btn = ctk.CTkButton(
-                    self.slots_frame,
-                    text=label_text,
-                    width=140,
-                    height=28,
-                    state="disabled" if full else "normal",
-                    fg_color=fg,
-                    hover_color=hover,
-                    command=(
-                        (lambda s=schedule_str, b=None, r=remaining, m=max_appt, doc=doctor: None)
-                        if full
-                        else lambda s=schedule_str, b=None, r=remaining, m=max_appt, doc=doctor: self._select_slot(
-                            s, b, r, m, doc
-                        )
-                    ),
-                )
-
-                # Remember the base color so we can restore it when deselecting
-                btn._base_fg_color = fg
-
-                # Workaround to pass button instance after creation
-                if not full:
-                    btn.configure(
-                        command=lambda s=schedule_str, b=btn, r=remaining, m=max_appt, doc=doctor: self._select_slot(
-                            s, b, r, m, doc
-                        )
-                    )
-
-                btn.grid(row=row_idx, column=col_idx, padx=4, pady=4, sticky="ew")
-
-                any_button = True
-                col_idx += 1
-                if col_idx >= 4:
-                    col_idx = 0
-                    row_idx += 1
-
-                current += timedelta(minutes=step)
+                current += timedelta(minutes=step_minutes)
 
         conn.close()
-
-        # If no slots at all, show friendly message
-        if not any_button:
-            msg = ctk.CTkLabel(
-                self.slots_frame,
-                text="No available time slots for this day. Try another date or doctor.",
-                font=("Segoe UI", 11),
-                anchor="center",
-                justify="center",
-            )
-            msg.grid(row=0, column=0, padx=8, pady=12, sticky="nsew")
+        return None, None
 
     def _select_slot(self, schedule_str: str, btn, remaining, max_appt, doctor: str):
         # If clicking the same button again, unselect it
@@ -883,26 +837,31 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
                 self.slot_summary_label.configure(text=f"Selected: {doctor} · {date_str} {time_str}")
 
     def save_appointment(self):
-        """Validate input and show a review/receipt window before saving."""
+        """Validate input and show a review/receipt window before saving.
+
+        The receptionist selects only doctor + date; the system automatically
+        chooses the first available time slot on that day for that doctor.
+        """
         doctor = self.doctor_combo.get().strip()
-        schedule_str = self.selected_schedule
         patient = self.patient_entry.get().strip()
         contact = self.contact_entry.get().strip()
         address = self.address_entry.get().strip()
         about = self.about_entry.get().strip()
         free_text = self.notes_entry.get("1.0", "end").strip()
+        date_str = self.date_entry.get().strip()
 
-        if not doctor or not schedule_str or not patient:
-            messagebox.showwarning("Validation", "Doctor, time slot, and patient name are required.")
+        if not doctor or not date_str or not patient:
+            messagebox.showwarning("Validation", "Doctor, date, and patient name are required.")
             return
 
-        try:
-            dt = datetime.strptime(schedule_str, "%Y-%m-%d %H:%M")
-        except ValueError:
-            messagebox.showwarning("Validation", "Selected time slot is invalid.")
+        # Find the first available slot for this doctor and date.
+        schedule_str, dt = self._find_first_available_schedule(doctor, date_str)
+        if schedule_str is None or dt is None:
+            messagebox.showerror(
+                "Availability",
+                "No available time slots remain for this doctor on the selected day.",
+            )
             return
-
-        date_str = schedule_str.split()[0]
 
         # Generate a simple unique barcode for this pending appointment
         barcode = "APPT-" + uuid4().hex[:10].upper()
@@ -947,9 +906,9 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         body.grid(row=1, column=0, padx=20, pady=(4, 16), sticky="nsew")
         body.grid_columnconfigure(1, weight=1)
 
-        # Format date/time nicely
+        # Format date/time nicely (time is not shown to receptionist)
         pretty_date = data["datetime_obj"].strftime("%Y-%m-%d")
-        pretty_time = data["datetime_obj"].strftime("%I:%M %p")
+        pretty_time = "-"
 
         rows = [
             ("Barcode", data["barcode"]),
