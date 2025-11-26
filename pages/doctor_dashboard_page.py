@@ -97,6 +97,34 @@ class DoctorDashboardPage(ctk.CTkFrame):
     def _connect(self):
         return sqlite3.connect(DB_NAME)
 
+    def _extract_total_from_notes(self, notes: str | None) -> float | None:
+        if not notes:
+            return None
+        raw = notes
+        if "About:" in raw:
+            after = raw.split("About:", 1)[1]
+        else:
+            after = raw
+        digits: list[str] = []
+        token = ""
+        for ch in after:
+            if ch.isdigit() or ch in ",.":
+                token += ch
+            else:
+                if token:
+                    digits.append(token)
+                    token = ""
+        if token:
+            digits.append(token)
+        if not digits:
+            return None
+        candidate = digits[-1].replace(",", "")
+        try:
+            value = float(candidate)
+        except ValueError:
+            return None
+        return value
+
     def _load_stats(self):
         """Return (total_upcoming, earnings_today, earnings_month, patients_month)."""
         if not self.doctor_name:
@@ -117,10 +145,10 @@ class DoctorDashboardPage(ctk.CTkFrame):
             )
             total_upcoming = cur.fetchone()[0] or 0
 
-            # Earnings today (sum of amount_paid for this doctor)
+            # Earnings today (sum of service totals for this doctor)
             cur.execute(
                 """
-                SELECT COALESCE(SUM(amount_paid), 0)
+                SELECT COALESCE(notes, '')
                 FROM appointments
                 WHERE doctor_name = ?
                   AND is_paid = 1
@@ -128,12 +156,17 @@ class DoctorDashboardPage(ctk.CTkFrame):
                 """,
                 (self.doctor_name,),
             )
-            earnings_today = cur.fetchone()[0] or 0
+            rows_today = cur.fetchall()
+            earnings_today = 0.0
+            for (notes,) in rows_today:
+                total = self._extract_total_from_notes(notes)
+                if total is not None:
+                    earnings_today += total
 
-            # Earnings this month
+            # Earnings this month (service totals)
             cur.execute(
                 """
-                SELECT COALESCE(SUM(amount_paid), 0)
+                SELECT COALESCE(notes, '')
                 FROM appointments
                 WHERE doctor_name = ?
                   AND is_paid = 1
@@ -141,7 +174,12 @@ class DoctorDashboardPage(ctk.CTkFrame):
                 """,
                 (self.doctor_name,),
             )
-            earnings_month = cur.fetchone()[0] or 0
+            rows_month = cur.fetchall()
+            earnings_month = 0.0
+            for (notes,) in rows_month:
+                total = self._extract_total_from_notes(notes)
+                if total is not None:
+                    earnings_month += total
 
             # Unique patients this month
             cur.execute(

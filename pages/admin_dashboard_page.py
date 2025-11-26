@@ -111,6 +111,34 @@ class AdminDashboardPage(ctk.CTkFrame):
 
         return value_label
 
+    def _extract_total_from_notes(self, notes: str | None) -> float | None:
+        if not notes:
+            return None
+        raw = notes
+        if "About:" in raw:
+            after = raw.split("About:", 1)[1]
+        else:
+            after = raw
+        digits: list[str] = []
+        token = ""
+        for ch in after:
+            if ch.isdigit() or ch in ",.":
+                token += ch
+            else:
+                if token:
+                    digits.append(token)
+                    token = ""
+        if token:
+            digits.append(token)
+        if not digits:
+            return None
+        candidate = digits[-1].replace(",", "")
+        try:
+            value = float(candidate)
+        except ValueError:
+            return None
+        return value
+
     def _refresh_data(self):
         conn = self._connect()
         cur = conn.cursor()
@@ -124,22 +152,32 @@ class AdminDashboardPage(ctk.CTkFrame):
         today_str = date.today().strftime("%Y-%m-%d")
         cur.execute(
             """
-            SELECT COALESCE(SUM(amount_paid), 0)
+            SELECT COALESCE(notes, '')
             FROM appointments
             WHERE is_paid = 1 AND DATE(schedule) = DATE('now')
             """
         )
-        earnings_today = cur.fetchone()[0] or 0
+        rows_today = cur.fetchall()
+        earnings_today = 0.0
+        for (notes,) in rows_today:
+            total = self._extract_total_from_notes(notes)
+            if total is not None:
+                earnings_today += total
 
         cur.execute(
             """
-            SELECT COALESCE(SUM(amount_paid), 0)
+            SELECT COALESCE(notes, '')
             FROM appointments
             WHERE is_paid = 1
               AND strftime('%Y-%m', schedule) = strftime('%Y-%m', 'now')
             """
         )
-        earnings_month = cur.fetchone()[0] or 0
+        rows_month = cur.fetchall()
+        earnings_month = 0.0
+        for (notes,) in rows_month:
+            total = self._extract_total_from_notes(notes)
+            if total is not None:
+                earnings_month += total
 
         cur.execute(
             """
@@ -168,18 +206,25 @@ class AdminDashboardPage(ctk.CTkFrame):
                 pass
 
         # Additional aggregate for average earnings per appointment
-        avg_earnings = 0
+        avg_earnings = 0.0
         try:
             conn2 = self._connect()
             cur2 = conn2.cursor()
             cur2.execute(
                 """
-                SELECT COALESCE(SUM(amount_paid) / COUNT(*), 0)
+                SELECT COALESCE(notes, '')
                 FROM appointments
                 WHERE is_paid = 1
                 """
             )
-            avg_earnings = cur2.fetchone()[0] or 0
+            rows = cur2.fetchall()
+            totals: list[float] = []
+            for (notes,) in rows:
+                total = self._extract_total_from_notes(notes)
+                if total is not None:
+                    totals.append(total)
+            if totals:
+                avg_earnings = sum(totals) / len(totals)
         finally:
             try:
                 conn2.close()
