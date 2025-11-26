@@ -41,13 +41,14 @@ class CashierRecordsPage(ctk.CTkFrame):
         controls_frame.grid_columnconfigure(1, weight=0)
         controls_frame.grid_columnconfigure(2, weight=0)
         controls_frame.grid_columnconfigure(3, weight=0)
+        controls_frame.grid_columnconfigure(4, weight=0)
 
         self.search_entry = ctk.CTkEntry(
             controls_frame,
             placeholder_text="Search patient or doctor...",
             width=160,
         )
-        self.search_entry.grid(row=0, column=0, padx=(0, 10))
+        self.search_entry.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="w")
 
         self.refresh_button = ctk.CTkButton(
             controls_frame,
@@ -55,7 +56,7 @@ class CashierRecordsPage(ctk.CTkFrame):
             width=80,
             command=self.reload_records,
         )
-        self.refresh_button.grid(row=0, column=1)
+        self.refresh_button.grid(row=0, column=1, padx=(0, 8), pady=0)
 
         self.status_filter = "all"
 
@@ -65,7 +66,7 @@ class CashierRecordsPage(ctk.CTkFrame):
             width=50,
             command=lambda: self._set_status_filter("all"),
         )
-        self.filter_all_button.grid(row=1, column=0, padx=(0, 4), pady=(6, 0))
+        self.filter_all_button.grid(row=0, column=2, padx=(0, 4), pady=0)
 
         self.filter_unpaid_button = ctk.CTkButton(
             controls_frame,
@@ -73,7 +74,7 @@ class CashierRecordsPage(ctk.CTkFrame):
             width=70,
             command=lambda: self._set_status_filter("unpaid"),
         )
-        self.filter_unpaid_button.grid(row=1, column=1, padx=4, pady=(6, 0))
+        self.filter_unpaid_button.grid(row=0, column=3, padx=4, pady=0)
 
         self.filter_paid_button = ctk.CTkButton(
             controls_frame,
@@ -81,7 +82,7 @@ class CashierRecordsPage(ctk.CTkFrame):
             width=60,
             command=lambda: self._set_status_filter("paid"),
         )
-        self.filter_paid_button.grid(row=1, column=2, padx=(4, 0), pady=(6, 0))
+        self.filter_paid_button.grid(row=0, column=4, padx=(4, 0), pady=0)
 
         table_container = ctk.CTkFrame(self, corner_radius=10)
         table_container.grid(row=1, column=0, padx=30, pady=(0, 30), sticky="nsew")
@@ -144,10 +145,9 @@ class CashierRecordsPage(ctk.CTkFrame):
         for row_index, rec in enumerate(filtered):
             rid, patient, doctor, schedule, amount_paid, is_paid, barcode, notes = rec
 
-            # Card-style container for each record; use the same dark gray
-            # background as other cards in the system (#111827) so the theme
-            # stays consistent.
-            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8, fg_color="#111827")
+            # Card-style container for each record; use a neutral dark gray
+            # background so it matches the overall system theme.
+            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8, fg_color="#2b2b2b")
             row_frame.grid(row=row_index, column=0, sticky="ew", padx=4, pady=3)
             row_frame.grid_columnconfigure(0, weight=1)
             row_frame.grid_columnconfigure(1, weight=0)

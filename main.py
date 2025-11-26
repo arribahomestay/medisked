@@ -3,6 +3,7 @@ import sys
 from datetime import datetime
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
+from PIL import Image
 
 from login import LoginApp
 from database import init_db, DB_NAME
@@ -82,19 +83,16 @@ class MainApp(ctk.CTk):
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
         self.status_label.grid(row=0, column=0, sticky="e")
 
-        # Top-right avatar button for profile
-        self.avatar_button = ctk.CTkButton(
+        # Top-right avatar: account emoji icon with transparent background
+        self.avatar_label = ctk.CTkLabel(
             self,
             text="👤",
-            width=26,
-            height=26,
-            corner_radius=0,
-            fg_color="#303030",  # dark gray to blend with app background
-            hover=False,
-            border_width=0,
-            command=self.open_profile,
+            fg_color="transparent",
+            text_color="#e5e7eb",
+            font=("Segoe UI", 16),
         )
-        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
+        self.avatar_label.place(relx=1.0, x=-20, y=10, anchor="ne")
+        self.avatar_label.bind("<Button-1>", lambda _event: self.open_profile())
 
         self.current_page = None
         self.show_appointment()
