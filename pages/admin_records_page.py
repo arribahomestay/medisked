@@ -190,7 +190,7 @@ class AdminRecordsPage(ctk.CTkFrame):
         filtered = self.get_filtered_records()
 
         for row_index, rec in enumerate(filtered):
-            rid, patient, doctor, schedule, notes = rec
+            rid, patient, doctor, schedule, notes, is_paid, amount_paid = rec
 
             row_widgets = []
 
@@ -214,7 +214,6 @@ class AdminRecordsPage(ctk.CTkFrame):
             doctor_label.grid(row=row_index, column=2, sticky="ew", padx=(0, 5), pady=2)
             row_widgets.append(doctor_label)
 
-            # Format schedule to 12-hour human readable form
             pretty_schedule = self._format_schedule(schedule)
 
             schedule_label = ctk.CTkLabel(
@@ -250,7 +249,6 @@ class AdminRecordsPage(ctk.CTkFrame):
             amount_label.grid(row=row_index, column=6, sticky="ew", padx=(0, 5), pady=2)
             row_widgets.append(amount_label)
 
-            # Actions column with VIEW (blue) and EDIT (green)
             actions_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
             actions_frame.grid(row=row_index, column=7, sticky="e", padx=(0, 5), pady=2)
 
@@ -315,7 +313,6 @@ class AdminRecordsPage(ctk.CTkFrame):
         win.title(f"Appointment #{rid}")
         win.geometry("400x260")
 
-        # Make sure window is on top and modal-like
         win.transient(self)
         win.grab_set()
         win.focus()
@@ -372,7 +369,6 @@ class AdminRecordsPage(ctk.CTkFrame):
         win.title(f"Edit Appointment #{rid}")
         win.geometry("420x320")
 
-        # Make sure window is on top and modal-like
         win.transient(self)
         win.grab_set()
         win.focus()
@@ -437,7 +433,6 @@ class AdminRecordsPage(ctk.CTkFrame):
         save_btn = ctk.CTkButton(win, text="Save", command=save_changes)
         save_btn.grid(row=4, column=0, columnspan=2, pady=(20, 20))
 
-    # _delete_record removed: admin can no longer delete appointment records from this page
 
     def export_csv(self):
         filtered = self.get_filtered_records()
@@ -456,7 +451,7 @@ class AdminRecordsPage(ctk.CTkFrame):
         with open(file_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(["ID", "Patient", "Doctor", "Schedule", "Notes"])
-            for rid, patient, doctor, schedule, notes in filtered:
+            for rid, patient, doctor, schedule, notes, _is_paid, _amount_paid in filtered:
                 writer.writerow(
                     [
                         rid,

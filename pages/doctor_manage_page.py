@@ -409,24 +409,6 @@ class DoctorManagePage(ctk.CTkFrame):
             row_frame.grid_columnconfigure(0, weight=1)
 
             info_text = f"{start_t} - {end_t}"
-            if slot_len:
-                info_text += f"  ({slot_len} min)"
-            if max_appt is not None:
-                # Compute how many appointments already booked within this time range
-                start_dt_str = f"{d_str} {start_t}"
-                end_dt_str = f"{d_str} {end_t}"
-                cur.execute(
-                    """
-                    SELECT COUNT(*) FROM appointments
-                    WHERE doctor_name = ? AND schedule >= ? AND schedule < ?
-                    """,
-                    (self.doctor_name, start_dt_str, end_dt_str),
-                )
-                used = cur.fetchone()[0]
-                remaining = max(0, (max_appt or 0) - used)
-
-                label = "slot" if remaining == 1 else "slots"
-                info_text += f"  {remaining} {label}"
 
             lbl = ctk.CTkLabel(row_frame, text=info_text, anchor="w")
             lbl.grid(row=0, column=0, sticky="ew")

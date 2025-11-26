@@ -2,10 +2,11 @@ import customtkinter as ctk
 
 
 class CashierSidebar(ctk.CTkFrame):
-    def __init__(self, master, username: str, on_pos, on_logout):
+    def __init__(self, master, username: str, on_pos, on_records, on_logout):
         super().__init__(master, width=220, corner_radius=0)
 
         self._on_pos = on_pos
+        self._on_records = on_records
         self._on_logout = on_logout
 
         self.active_fg = "#0d74d1"
@@ -35,6 +36,14 @@ class CashierSidebar(ctk.CTkFrame):
         )
         self.pos_button.grid(row=2, column=0, padx=12, pady=(0, 10), sticky="ew")
 
+        self.records_button = ctk.CTkButton(
+            self,
+            text="Records",
+            command=lambda: self._handle_nav_click("records"),
+            anchor="w",
+        )
+        self.records_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
+
         self.active_button = None
         self.set_active("pos")
 
@@ -52,10 +61,13 @@ class CashierSidebar(ctk.CTkFrame):
         self.set_active(name)
         if name == "pos":
             self._on_pos()
+        elif name == "records":
+            self._on_records()
 
     def set_active(self, name: str):
         buttons = {
             "pos": self.pos_button,
+            "records": self.records_button,
         }
         for key, btn in buttons.items():
             if btn is None:

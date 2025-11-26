@@ -57,6 +57,7 @@ class CashierDashboard(ctk.CTk):
             self,
             username=self.username,
             on_pos=self.show_pos,
+            on_records=self.show_records,
             on_logout=self.logout,
         )
         self.sidebar.grid(row=0, column=0, sticky="nsw")
@@ -77,6 +78,12 @@ class CashierDashboard(ctk.CTk):
 
     def show_pos(self):
         page = CashierPOSPage(self.content)
+        self._set_page(page)
+
+    def show_records(self):
+        from pages.cashier_records_page import CashierRecordsPage
+
+        page = CashierRecordsPage(self.content)
         self._set_page(page)
 
     def logout(self):

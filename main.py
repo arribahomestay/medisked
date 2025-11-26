@@ -110,6 +110,7 @@ class MainApp(ctk.CTk):
         if not messagebox.askyesno("Confirm Logout", "Are you sure you want to logout?"):
             return
         self.should_relogin = True
+        
         self.destroy()
 
 

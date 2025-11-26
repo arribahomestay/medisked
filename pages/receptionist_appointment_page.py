@@ -179,9 +179,37 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self.next_date_button = ctk.CTkButton(date_row, text=">", width=28, command=self._next_date)
         self.next_date_button.grid(row=0, column=2, padx=(4, 0))
 
-        # Action buttons row (right-aligned), placed directly below the Date row.
+        ctk.CTkLabel(form, text="Time").grid(row=9, column=0, padx=20, pady=4, sticky="w")
+        time_row = ctk.CTkFrame(form, fg_color="transparent")
+        time_row.grid(row=9, column=1, padx=20, pady=4, sticky="w")
+
+        hours = [f"{h:02d}" for h in range(1, 13)]
+        minutes = ["00", "15", "30", "45"]
+        periods = ["AM", "PM"]
+
+        self.time_hour_combo = ctk.CTkComboBox(time_row, values=hours, width=70, state="readonly")
+        self.time_hour_combo.set("09")
+        self.time_hour_combo.grid(row=0, column=0, padx=(0, 4))
+
+        self.time_minute_combo = ctk.CTkComboBox(time_row, values=minutes, width=70, state="readonly")
+        self.time_minute_combo.set("00")
+        self.time_minute_combo.grid(row=0, column=1, padx=4)
+
+        self.time_period_combo = ctk.CTkComboBox(time_row, values=periods, width=70, state="readonly")
+        self.time_period_combo.set("AM")
+        self.time_period_combo.grid(row=0, column=2, padx=(4, 4))
+
+        check_btn = ctk.CTkButton(
+            time_row,
+            text="Check",
+            width=70,
+            command=self._check_time_available,
+        )
+        check_btn.grid(row=0, column=3, padx=(0, 0))
+
+        # Action buttons row (right-aligned), placed directly below the Time row.
         actions_row = ctk.CTkFrame(form, fg_color="transparent")
-        actions_row.grid(row=9, column=0, columnspan=2, padx=20, pady=(8, 20), sticky="e")
+        actions_row.grid(row=10, column=0, columnspan=2, padx=20, pady=(8, 20), sticky="e")
         actions_row.grid_columnconfigure(0, weight=0)
         actions_row.grid_columnconfigure(1, weight=0)
 
@@ -206,7 +234,7 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         # Time is auto-assigned; keep an invisible frame so other logic can safely clear it,
         # but place it below the action buttons so it doesn't create extra visual space.
         dummy_container = ctk.CTkFrame(form, corner_radius=8, fg_color="transparent")
-        dummy_container.grid(row=10, column=0, columnspan=2, padx=20, pady=0, sticky="nsew")
+        dummy_container.grid(row=11, column=0, columnspan=2, padx=20, pady=0, sticky="nsew")
         dummy_container.grid_columnconfigure(0, weight=1)
 
         self.slots_frame = ctk.CTkFrame(dummy_container, corner_radius=8, fg_color="transparent")
@@ -621,6 +649,85 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         self.date_entry.insert(0, self.available_dates[self.current_date_index])
         self._load_slots()
 
+    def _check_time_available(self):
+        doctor = self.doctor_combo.get().strip()
+        date_str = self.date_entry.get().strip()
+
+        if not doctor or not date_str:
+            messagebox.showwarning("Check time", "Select doctor and date first.")
+            return
+
+        hour_str = self.time_hour_combo.get().strip()
+        minute_str = self.time_minute_combo.get().strip()
+        period = self.time_period_combo.get().strip()
+
+        try:
+            h = int(hour_str)
+            m = int(minute_str)
+        except ValueError:
+            messagebox.showwarning("Check time", "Selected time is invalid.")
+            return
+
+        if h < 1 or h > 12 or m < 0 or m > 59 or period not in ("AM", "PM"):
+            messagebox.showwarning("Check time", "Selected time is invalid.")
+            return
+
+        if period == "AM":
+            if h == 12:
+                h_24 = 0
+            else:
+                h_24 = h
+        else:
+            if h == 12:
+                h_24 = 12
+            else:
+                h_24 = h + 12
+
+        time_24 = f"{h_24:02d}:{m:02d}"
+        schedule_str = f"{date_str} {time_24}"
+
+        conn = self._connect()
+        cur = conn.cursor()
+
+        doctor_id = self._get_selected_doctor_id(cur)
+        if doctor_id is None:
+            conn.close()
+            messagebox.showerror("Check time", "Selected doctor is not active.")
+            return
+
+        cur.execute(
+            """
+            SELECT start_time, end_time, max_appointments
+            FROM doctor_availability
+            WHERE doctor_id = ? AND date = ? AND is_available = 1 AND start_time IS NOT NULL
+            """,
+            (doctor_id, date_str),
+        )
+        ranges = cur.fetchall()
+
+        available_in_range = False
+        for start_t, end_t, max_appt in ranges:
+            if start_t <= time_24 < end_t:
+                available_in_range = True
+                break
+
+        if not available_in_range:
+            conn.close()
+            messagebox.showerror("Check time", "Doctor is not available at this time.")
+            return
+
+        cur.execute(
+            "SELECT COUNT(*) FROM appointments WHERE doctor_name = ? AND schedule = ?",
+            (doctor, schedule_str),
+        )
+        count = cur.fetchone()[0]
+        conn.close()
+
+        if count > 0:
+            messagebox.showerror("Check time", "This time is already booked.")
+        else:
+            messagebox.showinfo("Check time", "This time is available.")
+
     def _prev_date(self):
         if not self.available_dates:
             return
@@ -854,13 +961,37 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
             messagebox.showwarning("Validation", "Doctor, date, and patient name are required.")
             return
 
-        # Find the first available slot for this doctor and date.
-        schedule_str, dt = self._find_first_available_schedule(doctor, date_str)
-        if schedule_str is None or dt is None:
-            messagebox.showerror(
-                "Availability",
-                "No available time slots remain for this doctor on the selected day.",
-            )
+        hour_str = self.time_hour_combo.get().strip()
+        minute_str = self.time_minute_combo.get().strip()
+        period = self.time_period_combo.get().strip()
+
+        try:
+            h = int(hour_str)
+            m = int(minute_str)
+        except ValueError:
+            messagebox.showwarning("Validation", "Selected time is invalid.")
+            return
+
+        if h < 1 or h > 12 or m < 0 or m > 59 or period not in ("AM", "PM"):
+            messagebox.showwarning("Validation", "Selected time is invalid.")
+            return
+
+        if period == "AM":
+            if h == 12:
+                h_24 = 0
+            else:
+                h_24 = h
+        else:
+            if h == 12:
+                h_24 = 12
+            else:
+                h_24 = h + 12
+
+        schedule_str = f"{date_str} {h_24:02d}:{m:02d}"
+        try:
+            dt = datetime.strptime(schedule_str, "%Y-%m-%d %H:%M")
+        except ValueError:
+            messagebox.showwarning("Validation", "Selected date is invalid.")
             return
 
         # Generate a simple unique barcode for this pending appointment
@@ -906,9 +1037,9 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         body.grid(row=1, column=0, padx=20, pady=(4, 16), sticky="nsew")
         body.grid_columnconfigure(1, weight=1)
 
-        # Format date/time nicely (time is not shown to receptionist)
+        # Format date/time nicely (time is now based on user selection)
         pretty_date = data["datetime_obj"].strftime("%Y-%m-%d")
-        pretty_time = "-"
+        pretty_time = data["datetime_obj"].strftime("%I:%M %p")
 
         rows = [
             ("Barcode", data["barcode"]),
@@ -999,7 +1130,6 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
             return
         doctor_id = row[0]
 
-        # Check day not explicitly marked unavailable
         cur.execute(
             """
             SELECT is_available FROM doctor_availability
@@ -1012,51 +1142,6 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         if row is not None and row[0] == 0:
             conn.close()
             messagebox.showerror("Availability", "Doctor is marked not available on this day.")
-            win.destroy()
-            return
-
-        # Check there is at least one availability slot containing this time
-        cur.execute(
-            """
-            SELECT id, start_time, end_time, max_appointments
-            FROM doctor_availability
-            WHERE doctor_id = ? AND date = ? AND is_available = 1 AND start_time IS NOT NULL
-            """,
-            (doctor_id, date_str),
-        )
-        slots = cur.fetchall()
-
-        def time_in_range(t, start, end):
-            return start <= t < end
-
-        dt = data["datetime_obj"]
-        t_val = dt.strftime("%H:%M")
-
-        matched_slot = None
-        for sid, start_t, end_t, max_appt in slots:
-            if time_in_range(t_val, start_t, end_t):
-                matched_slot = (sid, max_appt)
-                break
-
-        if matched_slot is None:
-            conn.close()
-            messagebox.showerror("Availability", "No configured availability slot covers this time.")
-            win.destroy()
-            return
-
-        slot_id, max_appt = matched_slot
-
-        # Check existing appointments for this doctor and time
-        cur.execute(
-            "SELECT COUNT(*) FROM appointments WHERE doctor_name = ? AND schedule = ?",
-            (doctor, schedule_str),
-        )
-        count = cur.fetchone()[0]
-
-        # Each slot represents exactly one appointment; block if already booked
-        if count >= 1:
-            conn.close()
-            messagebox.showerror("Availability", "This time slot is already full.")
             win.destroy()
             return
 

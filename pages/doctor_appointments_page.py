@@ -215,7 +215,7 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
         win = ctk.CTkToplevel(master)
         win.title("Appointment details")
         # Slightly larger so all information is visible
-        width, height = 520, 320
+        width, height = 560, 420
         win.geometry(f"{width}x{height}")
         win.resizable(False, False)
         win.transient(master)
@@ -240,13 +240,37 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
         body.grid(row=1, column=0, padx=16, pady=(4, 12), sticky="nsew")
         body.grid_columnconfigure(1, weight=1)
 
+        raw = notes or ""
+        parts = [p.strip() for p in raw.split("|") if p.strip()]
+        values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
+        for p in parts:
+            if ":" in p:
+                key, val = p.split(":", 1)
+                key = key.strip()
+                val = val.strip()
+                if key in values:
+                    values[key] = val
+                else:
+                    if values["Notes"]:
+                        values["Notes"] += " " + p
+                    else:
+                        values["Notes"] = p
+            else:
+                if values["Notes"]:
+                    values["Notes"] += " " + p
+                else:
+                    values["Notes"] = p
+
         rows = [
             ("Doctor", self.doctor_name or "-"),
             ("Patient", patient or "-"),
             ("Date", pretty_date),
             ("Time", pretty_time),
             ("Status", "PAID" if is_paid else "UNPAID"),
-            ("Notes", notes or "-"),
+            ("Contact", values["Contact"] or "-"),
+            ("Address", values["Address"] or "-"),
+            ("About", values["About"] or "-"),
+            ("Notes", values["Notes"] or "-"),
         ]
 
         for idx, (label, value) in enumerate(rows):

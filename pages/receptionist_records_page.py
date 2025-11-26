@@ -293,21 +293,20 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
 
         win = ctk.CTkToplevel(self)
         win.title(f"Appointment #{rid}")
-        win.geometry("420x320")
+        win.geometry("520x420")
 
         # Make sure window is on top and modal-like
         win.transient(self)
         win.grab_set()
         win.focus()
 
-        # Center over parent
         self.update_idletasks()
         parent_x = self.winfo_rootx()
         parent_y = self.winfo_rooty()
         parent_w = self.winfo_width()
         parent_h = self.winfo_height()
-        win_w = 400
-        win_h = 260
+        win_w = 1200
+        win_h = 720
         x = parent_x + (parent_w - win_w) // 2
         y = parent_y + (parent_h - win_h) // 2
         win.geometry(f"{win_w}x{win_h}+{x}+{y}")
@@ -349,22 +348,51 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
 
         copy_btn = ctk.CTkButton(barcode_row, text="Copy", width=60, command=_copy_barcode)
         copy_btn.grid(row=0, column=1, sticky="e")
+        raw = notes or ""
+        parts = [p.strip() for p in raw.split("|") if p.strip()]
+        values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
+        for p in parts:
+            if ":" in p:
+                key, val = p.split(":", 1)
+                key = key.strip()
+                val = val.strip()
+                if key in values:
+                    values[key] = val
+                else:
+                    if values["Notes"]:
+                        values["Notes"] += " " + p
+                    else:
+                        values["Notes"] = p
+            else:
+                if values["Notes"]:
+                    values["Notes"] += " " + p
+                else:
+                    values["Notes"] = p
 
-        ctk.CTkLabel(win, text="Notes:").grid(row=4, column=0, padx=20, pady=5, sticky="nw")
-        notes_text = notes or ""
+        ctk.CTkLabel(win, text="Contact:").grid(row=4, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=values["Contact"] or "-").grid(row=4, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="Address:").grid(row=5, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=values["Address"] or "-").grid(row=5, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="About:").grid(row=6, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=values["About"] or "-").grid(row=6, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="Notes:").grid(row=7, column=0, padx=20, pady=5, sticky="nw")
+        notes_text = values["Notes"] or ""
         notes_label = ctk.CTkLabel(win, text=notes_text, justify="left")
-        notes_label.grid(row=4, column=1, padx=20, pady=5, sticky="w")
+        notes_label.grid(row=7, column=1, padx=20, pady=5, sticky="w")
 
         close_btn = ctk.CTkButton(win, text="Close", command=win.destroy)
-        close_btn.grid(row=5, column=0, columnspan=2, pady=(20, 20))
+        close_btn.grid(row=8, column=0, columnspan=2, pady=(20, 20))
 
     def _edit_record(self, record):
         """Edit an appointment, including rescheduling via doctor/date/slot selection."""
-        rid, patient, doctor, schedule, notes = record
+        rid, patient, doctor, schedule, notes, _barcode = record
 
         win = ctk.CTkToplevel(self)
         win.title(f"Edit Appointment #{rid}")
-        win.geometry("520x420")
+        win.geometry("1200x720")
 
         # Make sure window is on top and modal-like
         win.transient(self)
@@ -617,8 +645,8 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
                     count = cur.fetchone()[0]
 
                     full = count >= 1
-                    pretty_start = current_dt.strftime("%I:%M %p")
-                    pretty_end = slot_end_dt.strftime("%I:%M %p")
+                    pretty_start = current_dt.strftime("%H:%M")
+                    pretty_end = slot_end_dt.strftime("%H:%M")
                     label_text = f"{pretty_start} - {pretty_end}"
 
                     fg = "#555555" if full else "#0d74d1"
@@ -663,11 +691,41 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
         load_slots_for_selection()
 
         # Notes editing
-        ctk.CTkLabel(win, text="Notes").grid(row=4, column=0, padx=20, pady=5, sticky="nw")
+        raw_meta = notes or ""
+        meta_parts = [p.strip() for p in raw_meta.split("|") if p.strip()]
+        meta_values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
+        for p in meta_parts:
+            if ":" in p:
+                key, val = p.split(":", 1)
+                key = key.strip()
+                val = val.strip()
+                if key in meta_values:
+                    meta_values[key] = val
+                else:
+                    if meta_values["Notes"]:
+                        meta_values["Notes"] += " " + p
+                    else:
+                        meta_values["Notes"] = p
+            else:
+                if meta_values["Notes"]:
+                    meta_values["Notes"] += " " + p
+                else:
+                    meta_values["Notes"] = p
+
+        ctk.CTkLabel(win, text="Contact").grid(row=4, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=meta_values["Contact"] or "-").grid(row=4, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="Address").grid(row=5, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=meta_values["Address"] or "-").grid(row=5, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="About").grid(row=6, column=0, padx=20, pady=5, sticky="w")
+        ctk.CTkLabel(win, text=meta_values["About"] or "-").grid(row=6, column=1, padx=20, pady=5, sticky="w")
+
+        ctk.CTkLabel(win, text="Notes").grid(row=7, column=0, padx=20, pady=5, sticky="nw")
         notes_entry = ctk.CTkTextbox(win, height=80)
-        if notes:
-            notes_entry.insert("1.0", notes)
-        notes_entry.grid(row=4, column=1, padx=20, pady=5, sticky="nsew")
+        if meta_values["Notes"]:
+            notes_entry.insert("1.0", meta_values["Notes"])
+        notes_entry.grid(row=7, column=1, padx=20, pady=5, sticky="nsew")
 
         # Reload slots when doctor or date changes
         doctor_combo.configure(command=lambda _value: load_slots_for_selection())
@@ -677,11 +735,22 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
             new_patient = patient_entry.get().strip()
             new_doctor = doctor_combo.get().strip()
             new_schedule = selected_schedule["value"]
-            new_notes = notes_entry.get("1.0", "end").strip()
+            new_notes_text = notes_entry.get("1.0", "end").strip()
 
             if not new_patient or not new_doctor or not new_schedule:
                 messagebox.showwarning("Validation", "Patient, doctor, and time slot are required.")
                 return
+
+            combined_notes_parts = []
+            if meta_values["Contact"]:
+                combined_notes_parts.append(f"Contact: {meta_values['Contact']}")
+            if meta_values["Address"]:
+                combined_notes_parts.append(f"Address: {meta_values['Address']}")
+            if meta_values["About"]:
+                combined_notes_parts.append(f"About: {meta_values['About']}")
+            if new_notes_text:
+                combined_notes_parts.append(f"Notes: {new_notes_text}")
+            new_notes = " | ".join(combined_notes_parts) if combined_notes_parts else None
 
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
@@ -697,7 +766,7 @@ class ReceptionistRecordsPage(ctk.CTkFrame):
             self.reload_records()
 
         save_btn = ctk.CTkButton(win, text="Save", command=save_changes)
-        save_btn.grid(row=5, column=0, columnspan=2, pady=(16, 20))
+        save_btn.grid(row=9, column=0, columnspan=2, pady=(16, 20))
 
     def export_csv(self):
         filtered = self.get_filtered_records()

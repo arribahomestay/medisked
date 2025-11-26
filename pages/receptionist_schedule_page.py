@@ -250,23 +250,16 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
             lbl.grid(row=0, column=0, padx=8, pady=8, sticky="w")
             return
 
-        # Header row
         header = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=8, pady=(4, 2))
         header.grid_columnconfigure(0, weight=1)
-        header.grid_columnconfigure(1, weight=1)
-        header.grid_columnconfigure(2, weight=1)
 
         ctk.CTkLabel(header, text="Time range", font=("Segoe UI", 11, "bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkLabel(header, text="Slot length", font=("Segoe UI", 11, "bold")).grid(row=0, column=1, sticky="w")
-        ctk.CTkLabel(header, text="# of slots", font=("Segoe UI", 11, "bold")).grid(row=0, column=2, sticky="w")
 
         for idx, (start_t, end_t, max_appt, slot_len) in enumerate(slots, start=1):
             row_frame = ctk.CTkFrame(self.slots_frame, fg_color="transparent")
             row_frame.grid(row=idx, column=0, sticky="ew", padx=8, pady=2)
             row_frame.grid_columnconfigure(0, weight=1)
-            row_frame.grid_columnconfigure(1, weight=1)
-            row_frame.grid_columnconfigure(2, weight=1)
 
             # Compute how many time slots this range represents
             try:
@@ -282,11 +275,6 @@ class ReceptionistSchedulePage(ctk.CTkFrame):
                 num_slots = 0
 
             time_range_text = f"{start_t} - {end_t}"
-            slot_len_text = f"{slot_len or 30} min"
-            # Each slot represents one appointment time
-            slots_text = f"{num_slots} slots (1 appointment per slot)" if num_slots else "0 slots"
 
             ctk.CTkLabel(row_frame, text=time_range_text).grid(row=0, column=0, sticky="w")
-            ctk.CTkLabel(row_frame, text=slot_len_text).grid(row=0, column=1, sticky="w")
-            ctk.CTkLabel(row_frame, text=slots_text).grid(row=0, column=2, sticky="w")
 
