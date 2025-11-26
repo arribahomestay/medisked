@@ -1,6 +1,7 @@
 import os
 import sys
 import sqlite3
+import random
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
 
@@ -181,21 +182,25 @@ class LoginApp(ctk.CTk):
             except Exception:
                 pass
 
-            # Respect system setting for showing login success popup
+            # Decide whether to show the final popup after loading
             show_popup = True
             try:
                 show_popup = get_setting("show_login_success_popup", "1") == "1"
             except Exception:
                 pass
-            if show_popup:
-                messagebox.showinfo("Login Success", f"Welcome {username} (role: {role})")
-            # TODO: Here you can open your main window based on role
-            # e.g., open_admin_dashboard() or open_receptionist_dashboard()
-            # For now we just close the login window
-            self.authenticated = True
-            self.logged_in_user = username
-            self.logged_in_role = role
-            self.destroy()
+
+            def _complete_login():
+                # Optional final popup once the fake loading finishes
+                if show_popup:
+                    messagebox.showinfo("Login Success", f"Welcome {username} (role: {role})")
+
+                self.authenticated = True
+                self.logged_in_user = username
+                self.logged_in_role = role
+                self.destroy()
+
+            # Show a short fake loading window before completing login
+            self._show_login_loading(_complete_login)
         else:
             try:
                 log_activity(username or None, None, "login_failed", "Invalid credentials or role")
@@ -228,6 +233,65 @@ class LoginApp(ctk.CTk):
         if row is None:
             return None
         return row[0]
+
+    # ------------------------------------------------------------------
+    # Fake loading dialog for more realistic login feedback
+    # ------------------------------------------------------------------
+
+    def _show_login_loading(self, on_done):
+        """Show a small 'Logging you in...' window for a short random delay.
+
+        This does not really contact any servers, it just gives the user
+        a more natural feeling that the system is working.
+        """
+
+        delay_ms = random.randint(1500, 2600)
+
+        win = ctk.CTkToplevel(self)
+        win.title("Logging in...")
+        win.geometry("260x120")
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+
+        win.grid_rowconfigure(0, weight=1)
+        win.grid_columnconfigure(0, weight=1)
+
+        label = ctk.CTkLabel(
+            win,
+            text="Verifying credentials...",
+            font=("Segoe UI", 13, "bold"),
+        )
+        label.grid(row=0, column=0, padx=20, pady=10, sticky="n")
+
+        sub = ctk.CTkLabel(
+            win,
+            text="Please wait a moment",
+            font=("Segoe UI", 11),
+        )
+        sub.grid(row=1, column=0, padx=20, pady=(0, 16), sticky="n")
+
+        # Center loading window over login window
+        self.update_idletasks()
+        win.update_idletasks()
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_w = self.winfo_width()
+        parent_h = self.winfo_height()
+        win_w = win.winfo_width()
+        win_h = win.winfo_height()
+        x = parent_x + (parent_w - win_w) // 2
+        y = parent_y + (parent_h - win_h) // 2
+        win.geometry(f"{win_w}x{win_h}+{x}+{y}")
+
+        def _finish():
+            try:
+                win.destroy()
+            except Exception:
+                pass
+            on_done()
+
+        win.after(delay_ms, _finish)
 
 
 def main():

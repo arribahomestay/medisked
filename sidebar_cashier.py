@@ -10,7 +10,10 @@ class CashierSidebar(ctk.CTkFrame):
         self._on_logout = on_logout
 
         self.active_fg = "#0d74d1"
-        self.inactive_fg = "transparent"
+        self.inactive_fg = "#020617"
+        self.hover_fg = "#1d4ed8"
+
+        self.configure(fg_color="#020617")
 
         self.grid_rowconfigure(4, weight=1)
 
@@ -26,6 +29,9 @@ class CashierSidebar(ctk.CTkFrame):
             text="POS",
             command=lambda: self._handle_nav_click("pos"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.pos_button.grid(row=2, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -34,21 +40,16 @@ class CashierSidebar(ctk.CTkFrame):
             text="Records",
             command=lambda: self._handle_nav_click("records"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.records_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
 
         self.active_button = None
         self.set_active("pos")
 
-        # Spacer pushes logout to bottom (row 4 grows)
-
-        self.logout_button = ctk.CTkButton(
-            self,
-            text="Logout",
-            command=self._on_logout,
-            anchor="w",
-        )
-        self.logout_button.grid(row=5, column=0, padx=12, pady=(0, 20), sticky="ew")
+        # Spacer pushes content away from bottom (row 4 grows)
 
     def _handle_nav_click(self, name: str):
         self.set_active(name)

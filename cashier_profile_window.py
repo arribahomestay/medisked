@@ -3,14 +3,14 @@ import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
 
-from database import DB_NAME
+from database import DB_NAME, log_activity
 
 
-class ProfileWindow(ctk.CTkToplevel):
+class CashierProfileWindow(ctk.CTkToplevel):
     def __init__(self, master, username: str, anchor_widget=None):
         super().__init__(master)
 
-        self.title("Profile Settings")
+        self.title("Cashier Profile Settings")
         width, height = 420, 340
         self.geometry(f"{width}x{height}")
         self.resizable(False, False)
@@ -19,12 +19,10 @@ class ProfileWindow(ctk.CTkToplevel):
         self.update_idletasks()
 
         if anchor_widget is not None:
-            # Position the window just below and aligned to the right of the anchor widget
             ax = anchor_widget.winfo_rootx()
             ay = anchor_widget.winfo_rooty()
             aw = anchor_widget.winfo_width()
             ah = anchor_widget.winfo_height()
-
             x = int(ax + aw - width)
             y = int(ay + ah + 4)
         else:
@@ -37,7 +35,6 @@ class ProfileWindow(ctk.CTkToplevel):
 
         self.geometry(f"{width}x{height}+{x}+{y}")
 
-        # Lock window position so it cannot be moved by dragging
         self._fixed_pos = (x, y)
         self._lock_position = False
 
@@ -53,21 +50,19 @@ class ProfileWindow(ctk.CTkToplevel):
         self.bind("<Configure>", _enforce_position)
 
         self.username = username
-        self.master_ref = master
 
         self.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(self, text="Profile Settings", font=("Segoe UI", 20, "bold"))
+        title = ctk.CTkLabel(self, text="Cashier Profile Settings", font=("Segoe UI", 20, "bold"))
         title.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Username (editable)
         user_label = ctk.CTkLabel(self, text="Username", font=("Segoe UI", 12))
         user_label.grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
 
         self.username_entry = ctk.CTkEntry(self)
         self.username_entry.insert(0, self.username)
         self.username_entry.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
-        # Password (editable)
+
         pwd_label = ctk.CTkLabel(self, text="Password", font=("Segoe UI", 12))
         pwd_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
 
@@ -77,26 +72,16 @@ class ProfileWindow(ctk.CTkToplevel):
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.grid(row=5, column=0, padx=20, pady=(10, 10), sticky="e")
 
-        logout_button = ctk.CTkButton(
-            buttons_frame,
-            text="Logout",
-            width=90,
-            fg_color="#b91c1c",
-            hover_color="#991b1b",
-            command=self._logout,
-        )
-        logout_button.grid(row=0, column=0, padx=(0, 8))
-
-        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
-        save_button.grid(row=0, column=1)
-
         close_button = ctk.CTkButton(
             buttons_frame,
             text="Close",
             width=80,
             command=self.destroy,
         )
-        close_button.grid(row=0, column=2, padx=(8, 0))
+        close_button.grid(row=0, column=1, padx=(8, 0))
+
+        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
+        save_button.grid(row=0, column=0)
 
     def save_profile(self):
         new_username = self.username_entry.get().strip()
@@ -109,12 +94,11 @@ class ProfileWindow(ctk.CTkToplevel):
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
 
-        # Load existing password so we can keep it if the field is left blank
+        # Load existing password so we can keep it if left blank
         cur.execute("SELECT password FROM users WHERE username = ?", (self.username,))
         row = cur.fetchone()
         current_password = row[0] if row else ""
 
-        # If username changed, ensure it's unique
         if new_username != self.username:
             cur.execute("SELECT COUNT(*) FROM users WHERE username = ?", (new_username,))
             if cur.fetchone()[0] > 0:
@@ -133,20 +117,13 @@ class ProfileWindow(ctk.CTkToplevel):
 
         self.username = new_username
 
+        try:
+            log_activity(self.username, "cashier", "update_profile", f"Updated cashier profile for '{self.username}'")
+        except Exception:
+            pass
+
         messagebox.showinfo(
             "Profile",
             "Profile updated successfully. Use the new username the next time you log in.",
         )
-        self.destroy()
-
-    def _logout(self):
-        from tkinter import messagebox as _mb
-
-        if not hasattr(self.master_ref, "logout"):
-            self.destroy()
-            return
-        if not _mb.askyesno("Confirm Logout", "Are you sure you want to logout?"):
-            return
-        self.master_ref.should_relogin = True
-        self.master_ref.destroy()
         self.destroy()

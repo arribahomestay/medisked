@@ -2,7 +2,7 @@ import customtkinter as ctk
 
 
 class DoctorSidebar(ctk.CTkFrame):
-    def __init__(self, master, username: str, on_dashboard, on_appointments, on_records, on_manage, on_profile, on_logout):
+    def __init__(self, master, username: str, on_dashboard, on_appointments, on_records, on_manage, on_profile, on_logout=None):
         super().__init__(master, width=220, corner_radius=0)
 
         self._on_dashboard = on_dashboard
@@ -12,7 +12,10 @@ class DoctorSidebar(ctk.CTkFrame):
         self._on_profile = on_profile
 
         self.active_fg = "#0d74d1"
-        self.inactive_fg = "transparent"
+        self.inactive_fg = "#020617"
+        self.hover_fg = "#1d4ed8"
+
+        self.configure(fg_color="#020617")
 
         # Spacer row 7 grows to push avatar+logout to the bottom
         self.grid_rowconfigure(7, weight=1)
@@ -30,6 +33,9 @@ class DoctorSidebar(ctk.CTkFrame):
             text="DASHBOARD",
             command=lambda: self._handle_nav_click("dashboard"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.dashboard_button.grid(row=2, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -38,6 +44,9 @@ class DoctorSidebar(ctk.CTkFrame):
             text="APPOINTMENTS",
             command=lambda: self._handle_nav_click("appointments"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.appointments_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -46,6 +55,9 @@ class DoctorSidebar(ctk.CTkFrame):
             text="RECORDS",
             command=lambda: self._handle_nav_click("records"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.records_button.grid(row=4, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -54,19 +66,14 @@ class DoctorSidebar(ctk.CTkFrame):
             text="MANAGE",
             command=lambda: self._handle_nav_click("manage"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.manage_button.grid(row=5, column=0, padx=12, pady=(0, 10), sticky="ew")
 
         self.active_button = None
         self.set_active("dashboard")
-
-        self.logout_button = ctk.CTkButton(
-            self,
-            text="Logout",
-            command=on_logout,
-            anchor="w",
-        )
-        self.logout_button.grid(row=9, column=0, padx=12, pady=(0, 20), sticky="ew")
 
     def _handle_nav_click(self, name: str):
         self.set_active(name)

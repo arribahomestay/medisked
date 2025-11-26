@@ -54,6 +54,7 @@ class DoctorProfileWindow(ctk.CTkToplevel):
 
         self.old_username = username
         self.doctor_id = doctor_id
+        self.master_ref = master
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -69,47 +70,47 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         self.username_entry.insert(0, self.username_value or "")
         self.username_entry.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
 
-        name_label = ctk.CTkLabel(self, text="Name", font=("Segoe UI", 12))
-        name_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
-
-        self.name_entry = ctk.CTkEntry(self)
-        self.name_entry.insert(0, self.name_value or "")
-        self.name_entry.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
-
         prof_label = ctk.CTkLabel(self, text="Profession", font=("Segoe UI", 12))
-        prof_label.grid(row=5, column=0, padx=20, pady=(10, 0), sticky="w")
+        prof_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
 
         self.prof_entry = ctk.CTkEntry(self)
         self.prof_entry.insert(0, self.prof_value or "")
-        self.prof_entry.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.prof_entry.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         pwd_label = ctk.CTkLabel(self, text="Password", font=("Segoe UI", 12))
-        pwd_label.grid(row=7, column=0, padx=20, pady=(10, 0), sticky="w")
+        pwd_label.grid(row=5, column=0, padx=20, pady=(10, 0), sticky="w")
 
         self.password_entry = ctk.CTkEntry(self, show="*")
         if self.password_value:
             self.password_entry.insert(0, self.password_value)
-        self.password_entry.grid(row=8, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.password_entry.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.grid(row=9, column=0, padx=20, pady=(10, 10), sticky="e")
+
+        logout_button = ctk.CTkButton(
+            buttons_frame,
+            text="Logout",
+            width=90,
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
+            command=self._logout,
+        )
+        logout_button.grid(row=0, column=0, padx=(0, 8))
+
+        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
+        save_button.grid(row=0, column=1)
 
         close_button = ctk.CTkButton(
             buttons_frame,
             text="Close",
             width=80,
-            fg_color="#b91c1c",
-            hover_color="#991b1b",
             command=self.destroy,
         )
-        close_button.grid(row=0, column=0, padx=(0, 8))
-
-        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
-        save_button.grid(row=0, column=1)
+        close_button.grid(row=0, column=2, padx=(8, 0))
 
     def _load_data(self):
         self.username_value = None
-        self.name_value = None
         self.prof_value = None
         self.password_value = None
 
@@ -122,25 +123,29 @@ class DoctorProfileWindow(ctk.CTkToplevel):
             self.username_value, self.password_value = row
 
         if self.doctor_id is not None:
-            cur.execute("SELECT name, specialty FROM doctors WHERE id = ?", (self.doctor_id,))
+            cur.execute("SELECT specialty FROM doctors WHERE id = ?", (self.doctor_id,))
             row = cur.fetchone()
             if row:
-                self.name_value, self.prof_value = row
+                (self.prof_value,) = row
 
         conn.close()
 
     def save_profile(self):
         new_username = self.username_entry.get().strip()
-        new_name = self.name_entry.get().strip()
         new_prof = self.prof_entry.get().strip()
         new_password = self.password_entry.get().strip()
 
-        if not new_username or not new_password:
-            messagebox.showwarning("Validation", "Username and password cannot be empty.")
+        if not new_username:
+            messagebox.showwarning("Validation", "Username cannot be empty.")
             return
 
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
+
+        # Load existing password so we can keep it if left blank
+        cur.execute("SELECT password FROM users WHERE username = ?", (self.old_username,))
+        row = cur.fetchone()
+        current_password = row[0] if row else ""
 
         if new_username != self.old_username:
             cur.execute("SELECT COUNT(*) FROM users WHERE username = ?", (new_username,))
@@ -149,32 +154,51 @@ class DoctorProfileWindow(ctk.CTkToplevel):
                 messagebox.showerror("Error", "Username already exists.")
                 return
 
+        password_to_save = new_password if new_password else current_password
+
+        # Remember old doctor name (if any) so we can update appointments
         old_doctor_name = None
         if self.doctor_id is not None:
-            cur.execute("SELECT name FROM doctors WHERE id = ?", (self.doctor_id,))
+            cur.execute(
+                "SELECT name FROM doctors WHERE id = ?",
+                (self.doctor_id,),
+            )
             row = cur.fetchone()
             if row:
                 old_doctor_name = row[0]
 
         cur.execute(
             "UPDATE users SET username = ?, password = ? WHERE username = ?",
-            (new_username, new_password, self.old_username),
+            (new_username, password_to_save, self.old_username),
         )
 
         if self.doctor_id is not None:
+            # Keep doctor.name aligned with username
             cur.execute(
                 "UPDATE doctors SET name = ?, specialty = ? WHERE id = ?",
-                (new_name, new_prof, self.doctor_id),
+                (new_username, new_prof, self.doctor_id),
             )
 
-        if old_doctor_name and new_name and new_name != old_doctor_name:
+        if old_doctor_name and new_username and new_username != old_doctor_name:
             cur.execute(
                 "UPDATE appointments SET doctor_name = ? WHERE doctor_name = ?",
-                (new_name, old_doctor_name),
+                (new_username, old_doctor_name),
             )
 
         conn.commit()
         conn.close()
 
         messagebox.showinfo("Profile", "Profile updated successfully. Please re-login to see name/username changes everywhere.")
+        self.destroy()
+
+    def _logout(self):
+        from tkinter import messagebox as _mb
+
+        if not hasattr(self.master_ref, "logout"):
+            self.destroy()
+            return
+        if not _mb.askyesno("Confirm Logout", "Are you sure you want to logout?"):
+            return
+        self.master_ref.should_relogin = True
+        self.master_ref.destroy()
         self.destroy()

@@ -1,6 +1,8 @@
 import os
 import sys
 from datetime import datetime
+import time
+import urllib.request
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
 from PIL import Image
@@ -80,9 +82,22 @@ class AdminDashboard(ctk.CTk):
         # Bottom status bar
         self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
-        self.status_frame.grid_columnconfigure(0, weight=1)
+        # Column 0: network indicator, Column 1: text status
+        self.status_frame.grid_columnconfigure(0, weight=0)
+        self.status_frame.grid_columnconfigure(1, weight=1)
+
+        self.net_status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="● Checking...",
+            anchor="w",
+            text_color="#9ca3af",
+        )
+        self.net_status_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
+
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
-        self.status_label.grid(row=0, column=0, sticky="e")
+        self.status_label.grid(row=0, column=1, sticky="e")
+
+        self._net_status = "unknown"
 
         # Top-right avatar: image button using user.png with transparent background
         user_png_path = os.path.join(base_dir, "images", "user.png")
@@ -108,6 +123,7 @@ class AdminDashboard(ctk.CTk):
         self.current_page = None
         self.show_dashboard()
         self._update_status_bar()
+        self._update_network_status()
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
@@ -155,7 +171,7 @@ class AdminDashboard(ctk.CTk):
         by = self.avatar_button.winfo_rooty()
         bw = self.avatar_button.winfo_width()
 
-        width, height = 200, 95
+        width, height = 200, 140
         desired_x = bx - width + bw  # align menu under/right of avatar
         desired_y = by + self.avatar_button.winfo_height() + 4
 
@@ -190,7 +206,17 @@ class AdminDashboard(ctk.CTk):
             anchor="w",
             command=self._open_security,
         )
-        btn3.grid(row=1, column=0, padx=10, pady=(4, 8), sticky="ew")
+        btn3.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
+
+        btn4 = ctk.CTkButton(
+            self.account_menu,
+            text="LOGOUT",
+            anchor="w",
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
+            command=self._logout_from_menu,
+        )
+        btn4.grid(row=2, column=0, padx=10, pady=(4, 8), sticky="ew")
 
     def _close_account_menu(self):
         if self.account_menu is not None and self.account_menu.winfo_exists():
@@ -208,6 +234,10 @@ class AdminDashboard(ctk.CTk):
         self._close_account_menu()
         messagebox.showinfo("Security", "WALA PANI")
 
+    def _logout_from_menu(self):
+        self._close_account_menu()
+        self.logout()
+
     def logout(self):
         if not messagebox.askyesno("Confirm Logout", "Are you sure you want to logout?"):
             return
@@ -220,3 +250,45 @@ class AdminDashboard(ctk.CTk):
         now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         self.status_label.configure(text=f"Medisked v1.0   |   User: {self.username}   |   {now_str}")
         self.after(1000, self._update_status_bar)
+
+    def _update_network_status(self):
+        """Periodically check internet connectivity and update the indicator.
+
+        Colors:
+        - Gray  (#6b7280): offline (timeout)
+        - Orange(#f97316): slow (> 1.0s response)
+        - Green (#16a34a): good
+        - Blue  (#2563eb): no internet / DNS error
+        """
+
+        def classify(latency: float | None, error: Exception | None):
+            if error is not None:
+                # Treat network/DNS errors as no-internet
+                return "no_internet", "No internet", "#2563eb"
+            if latency is None:
+                return "offline", "Offline", "#6b7280"
+            if latency > 1.0:
+                return "slow", f"Slow ({latency*1000:.0f} ms)", "#f97316"
+            return "good", f"Online ({latency*1000:.0f} ms)", "#16a34a"
+
+        start = time.monotonic()
+        latency: float | None = None
+        err: Exception | None = None
+        try:
+            # Lightweight HEAD-style request with short timeout
+            req = urllib.request.Request("https://www.google.com", method="HEAD")
+            with urllib.request.urlopen(req, timeout=1.5):
+                pass
+            latency = time.monotonic() - start
+        except Exception as e:  # noqa: BLE001
+            err = e
+
+        status_key, label_text, color = classify(latency, err)
+        self._net_status = status_key
+        try:
+            self.net_status_label.configure(text=f"● {label_text}", text_color=color)
+        except Exception:
+            pass
+
+        # Re-check every 10 seconds
+        self.after(10000, self._update_network_status)

@@ -13,7 +13,10 @@ class AdminSidebar(ctk.CTkFrame):
         self._on_settings = on_settings
 
         self.active_fg = "#0d74d1"
-        self.inactive_fg = "transparent"
+        self.inactive_fg = "#020617"
+        self.hover_fg = "#1d4ed8"
+
+        self.configure(fg_color="#020617")
 
         self.grid_rowconfigure(6, weight=1)
 
@@ -29,6 +32,9 @@ class AdminSidebar(ctk.CTkFrame):
             text="DASHBOARD",
             command=lambda: self._handle_nav_click("dashboard"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.dashboard_button.grid(row=2, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -37,6 +43,9 @@ class AdminSidebar(ctk.CTkFrame):
             text="RECORDS",
             command=lambda: self._handle_nav_click("records"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.records_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -45,6 +54,9 @@ class AdminSidebar(ctk.CTkFrame):
             text="MANAGE ACCOUNTS",
             command=lambda: self._handle_nav_click("manage_accounts"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.manage_accounts_button.grid(row=4, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -53,21 +65,16 @@ class AdminSidebar(ctk.CTkFrame):
             text="SETTINGS",
             command=lambda: self._handle_nav_click("settings"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.settings_button.grid(row=5, column=0, padx=12, pady=(0, 10), sticky="ew")
 
         self.active_button = None
         self.set_active("dashboard")
 
-        # Spacer row 5 grows to push logout to bottom
-
-        self.logout_button = ctk.CTkButton(
-            self,
-            text="Logout",
-            command=on_logout,
-            anchor="w",
-        )
-        self.logout_button.grid(row=8, column=0, padx=12, pady=(0, 20), sticky="ew")
+        # Spacer row 6 grows to keep nav grouped at top
 
     def _handle_nav_click(self, name: str):
         self.set_active(name)

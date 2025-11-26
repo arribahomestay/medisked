@@ -5,7 +5,7 @@ import os
 
 from tkinter import messagebox
 
-from database import DB_NAME
+from database import DB_NAME, log_activity
 
 
 class CashierPOSPage(ctk.CTkFrame):
@@ -440,6 +440,18 @@ class CashierPOSPage(ctk.CTkFrame):
 
             # Close the printing window after a short delay (e.g., 1 second)
             printing.after(1000, _finish_printing)
+
+            # Log cashier payment confirmation
+            try:
+                top = self.winfo_toplevel()
+                username = getattr(top, "username", "cashier")
+                detail = (
+                    f"Confirmed payment for appointment #{rid} "
+                    f"(barcode={barcode or '-'}, total={total:.2f}, paid={paid:.2f}, change={change:.2f})"
+                )
+                log_activity(username, "cashier", "confirm_payment", detail)
+            except Exception:
+                pass
 
         cancel_btn = ctk.CTkButton(btn_row, text="Cancel", width=90, fg_color="#4b5563", hover_color="#374151", command=_cancel)
         cancel_btn.grid(row=0, column=0, padx=(0, 8))

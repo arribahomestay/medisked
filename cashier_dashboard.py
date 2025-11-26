@@ -1,14 +1,18 @@
 import os
 import sys
 from datetime import datetime
+import time
+import urllib.request
 import sqlite3
 
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
+from PIL import Image
 
 from database import DB_NAME
 from sidebar_cashier import CashierSidebar
 from pages.cashier_pos_page import CashierPOSPage
+from cashier_profile_window import CashierProfileWindow
 
 
 class CashierDashboard(ctk.CTk):
@@ -48,6 +52,8 @@ class CashierDashboard(ctk.CTk):
 
         self.username = username
         self.should_relogin = False
+        self.account_menu = None
+        self.profile_window = None
 
         # Layout: sidebar + content + bottom status bar
         self.grid_columnconfigure(0, weight=0)
@@ -72,13 +78,47 @@ class CashierDashboard(ctk.CTk):
         # Bottom status bar
         self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
-        self.status_frame.grid_columnconfigure(0, weight=1)
+        self.status_frame.grid_columnconfigure(0, weight=0)
+        self.status_frame.grid_columnconfigure(1, weight=1)
+
+        self.net_status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="● Checking...",
+            anchor="w",
+            text_color="#9ca3af",
+        )
+        self.net_status_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
+
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
-        self.status_label.grid(row=0, column=0, sticky="e")
+        self.status_label.grid(row=0, column=1, sticky="e")
+
+        self._net_status = "unknown"
+
+        # Top-right avatar for account menu (use CTkImage so it scales properly)
+        user_png_path = os.path.join(base_dir, "images", "user.png")
+        try:
+            avatar_image = Image.open(user_png_path)
+            self._avatar_icon = ctk.CTkImage(light_image=avatar_image, dark_image=avatar_image, size=(20, 20))
+        except Exception:
+            self._avatar_icon = None
+
+        self.avatar_button = ctk.CTkButton(
+            self,
+            image=self._avatar_icon,
+            text="",
+            width=28,
+            height=28,
+            fg_color="transparent",
+            hover=False,
+            border_width=0,
+            command=self._open_account_menu,
+        )
+        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
 
         self.current_page = None
         self.show_pos()
         self._update_status_bar()
+        self._update_network_status()
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
@@ -96,6 +136,63 @@ class CashierDashboard(ctk.CTk):
         page = CashierRecordsPage(self.content)
         self._set_page(page)
 
+    def _open_account_menu(self):
+        if self.account_menu is not None and self.account_menu.winfo_exists():
+            self.account_menu.destroy()
+            self.account_menu = None
+            return
+
+        self.account_menu = ctk.CTkToplevel(self)
+        self.account_menu.overrideredirect(True)
+        self.account_menu.attributes("-topmost", True)
+
+        self.account_menu.update_idletasks()
+
+        bx = self.avatar_button.winfo_rootx()
+        by = self.avatar_button.winfo_rooty()
+        bw = self.avatar_button.winfo_width()
+
+        width, height = 180, 110
+        x = int(bx + bw - width)
+        y = int(by + self.avatar_button.winfo_height() + 4)
+        self.account_menu.geometry(f"{width}x{height}+{x}+{y}")
+
+        self.account_menu.grid_columnconfigure(0, weight=1)
+
+        btn_settings = ctk.CTkButton(
+            self.account_menu,
+            text="ACCOUNT SETTINGS",
+            anchor="w",
+            command=self._open_profile_settings,
+        )
+        btn_settings.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
+
+        btn_logout = ctk.CTkButton(
+            self.account_menu,
+            text="LOGOUT",
+            anchor="w",
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
+            command=self._logout_from_menu,
+        )
+        btn_logout.grid(row=1, column=0, padx=10, pady=(4, 8), sticky="ew")
+
+    def _open_profile_settings(self):
+        if self.account_menu is not None and self.account_menu.winfo_exists():
+            self.account_menu.destroy()
+        self.account_menu = None
+
+        if self.profile_window is None or not self.profile_window.winfo_exists():
+            self.profile_window = CashierProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
+        else:
+            self.profile_window.focus()
+
+    def _logout_from_menu(self):
+        if self.account_menu is not None and self.account_menu.winfo_exists():
+            self.account_menu.destroy()
+        self.account_menu = None
+        self.logout()
+
     def logout(self):
         if not messagebox.askyesno("Confirm Logout", "Are you sure you want to logout?"):
             return
@@ -108,3 +205,35 @@ class CashierDashboard(ctk.CTk):
         now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         self.status_label.configure(text=f"Medisked v1.0   |   User: {self.username}   |   {now_str}")
         self.after(1000, self._update_status_bar)
+
+    def _update_network_status(self):
+        """Check internet connectivity and update the indicator color/text."""
+
+        def classify(latency: float | None, error: Exception | None):
+            if error is not None:
+                return "no_internet", "No internet", "#2563eb"
+            if latency is None:
+                return "offline", "Offline", "#6b7280"
+            if latency > 1.0:
+                return "slow", f"Slow ({latency*1000:.0f} ms)", "#f97316"
+            return "good", f"Online ({latency*1000:.0f} ms)", "#16a34a"
+
+        start = time.monotonic()
+        latency: float | None = None
+        err: Exception | None = None
+        try:
+            req = urllib.request.Request("https://www.google.com", method="HEAD")
+            with urllib.request.urlopen(req, timeout=1.5):
+                pass
+            latency = time.monotonic() - start
+        except Exception as e:  # noqa: BLE001
+            err = e
+
+        status_key, label_text, color = classify(latency, err)
+        self._net_status = status_key
+        try:
+            self.net_status_label.configure(text=f"● {label_text}", text_color=color)
+        except Exception:
+            pass
+
+        self.after(10000, self._update_network_status)

@@ -4,7 +4,7 @@ import customtkinter as ctk
 class ReceptionistSidebar(ctk.CTkFrame):
     def __init__(self, master, username: str,
                  on_appointment, on_schedule, on_records,
-                 on_profile, on_logout):
+                 on_profile, on_logout=None):
         super().__init__(master, width=220, corner_radius=0)
 
         self._on_appointment = on_appointment
@@ -12,7 +12,10 @@ class ReceptionistSidebar(ctk.CTkFrame):
         self._on_records = on_records
 
         self.active_fg = "#0d74d1"
-        self.inactive_fg = "transparent"
+        self.inactive_fg = "#020617"
+        self.hover_fg = "#1d4ed8"
+
+        self.configure(fg_color="#020617")
 
         # Spacer row will be row 5 (after three main nav buttons)
         self.grid_rowconfigure(5, weight=1)
@@ -29,6 +32,9 @@ class ReceptionistSidebar(ctk.CTkFrame):
             text="APPOINTMENT",
             command=lambda: self._handle_nav_click("appointment"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.appointment_button.grid(row=2, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -37,6 +43,9 @@ class ReceptionistSidebar(ctk.CTkFrame):
             text="SCHEDULE",
             command=lambda: self._handle_nav_click("schedule"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.schedule_button.grid(row=3, column=0, padx=12, pady=(0, 10), sticky="ew")
 
@@ -45,21 +54,16 @@ class ReceptionistSidebar(ctk.CTkFrame):
             text="RECORDS",
             command=lambda: self._handle_nav_click("records"),
             anchor="w",
+            fg_color=self.inactive_fg,
+            hover_color=self.hover_fg,
+            corner_radius=10,
         )
         self.records_button.grid(row=4, column=0, padx=12, pady=(0, 10), sticky="ew")
 
         self.active_button = None
         self.set_active("appointment")
 
-        # Spacer row grows to push logout to bottom
-
-        self.logout_button = ctk.CTkButton(
-            self,
-            text="Logout",
-            command=on_logout,
-            anchor="w",
-        )
-        self.logout_button.grid(row=7, column=0, padx=12, pady=(0, 20), sticky="ew")
+        # Spacer row grows to keep nav grouped at top
 
     def _handle_nav_click(self, name: str):
         self.set_active(name)

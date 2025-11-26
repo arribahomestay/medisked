@@ -4,7 +4,7 @@ import csv
 from datetime import datetime
 
 from tkinter import filedialog, messagebox, Menu
-from database import DB_NAME
+from database import DB_NAME, log_activity
 
 
 class AdminRecordsPage(ctk.CTkFrame):
@@ -409,6 +409,15 @@ class AdminRecordsPage(ctk.CTkFrame):
             conn.commit()
             conn.close()
 
+            # Log admin editing this appointment
+            try:
+                top = self.winfo_toplevel()
+                username = getattr(top, "username", "admin")
+                detail = f"Edited appointment #{rid} for {new_patient} with {new_doctor} at {new_schedule}"
+                log_activity(username, "admin", "edit_appointment", detail)
+            except Exception:
+                pass
+
             win.destroy()
             self.reload_records()
 
@@ -431,6 +440,15 @@ class AdminRecordsPage(ctk.CTkFrame):
         conn.close()
 
         self.reload_records()
+
+        # Log admin deleting this appointment
+        try:
+            top = self.winfo_toplevel()
+            username = getattr(top, "username", "admin")
+            detail = f"Deleted appointment #{rid} for {patient} with {doctor} at {schedule}"
+            log_activity(username, "admin", "delete_appointment", detail)
+        except Exception:
+            pass
 
 
     def export_csv(self):
@@ -462,4 +480,13 @@ class AdminRecordsPage(ctk.CTkFrame):
                 )
 
         messagebox.showinfo("Export", "Appointments exported successfully.")
+
+        # Log export action
+        try:
+            top = self.winfo_toplevel()
+            username = getattr(top, "username", "admin")
+            detail = f"Exported {len(filtered)} appointments to CSV at '{file_path}'"
+            log_activity(username, "admin", "export_appointments_csv", detail)
+        except Exception:
+            pass
 

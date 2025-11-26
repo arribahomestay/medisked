@@ -1,5 +1,7 @@
 import os
 from datetime import datetime
+import time
+import urllib.request
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
 from PIL import Image
@@ -67,7 +69,6 @@ class DoctorDashboard(ctk.CTk):
             on_records=self.show_records,
             on_manage=self.show_manage,
             on_profile=self.open_profile,
-            on_logout=self.logout,
         )
         self.sidebar.grid(row=0, column=0, sticky="nsw")
 
@@ -79,9 +80,21 @@ class DoctorDashboard(ctk.CTk):
         # Bottom status bar
         self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
-        self.status_frame.grid_columnconfigure(0, weight=1)
+        self.status_frame.grid_columnconfigure(0, weight=0)
+        self.status_frame.grid_columnconfigure(1, weight=1)
+
+        self.net_status_label = ctk.CTkLabel(
+            self.status_frame,
+            text="● Checking...",
+            anchor="w",
+            text_color="#9ca3af",
+        )
+        self.net_status_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
+
         self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
-        self.status_label.grid(row=0, column=0, sticky="e")
+        self.status_label.grid(row=0, column=1, sticky="e")
+
+        self._net_status = "unknown"
 
         # Top-right avatar: image button using user.png with transparent background
         user_png_path = os.path.join(base_dir, "images", "user.png")
@@ -107,6 +120,7 @@ class DoctorDashboard(ctk.CTk):
         self.current_page = None
         self.show_dashboard()
         self._update_status_bar()
+        self._update_network_status()
 
     def _connect(self):
         return sqlite3.connect(DB_NAME)
@@ -193,3 +207,35 @@ class DoctorDashboard(ctk.CTk):
         now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         self.status_label.configure(text=f"Medisked v1.0   |   User: {display_name}   |   {now_str}")
         self.after(1000, self._update_status_bar)
+
+    def _update_network_status(self):
+        """Check internet connectivity and update the indicator color/text."""
+
+        def classify(latency: float | None, error: Exception | None):
+            if error is not None:
+                return "no_internet", "No internet", "#2563eb"
+            if latency is None:
+                return "offline", "Offline", "#6b7280"
+            if latency > 1.0:
+                return "slow", f"Slow ({latency*1000:.0f} ms)", "#f97316"
+            return "good", f"Online ({latency*1000:.0f} ms)", "#16a34a"
+
+        start = time.monotonic()
+        latency: float | None = None
+        err: Exception | None = None
+        try:
+            req = urllib.request.Request("https://www.google.com", method="HEAD")
+            with urllib.request.urlopen(req, timeout=1.5):
+                pass
+            latency = time.monotonic() - start
+        except Exception as e:  # noqa: BLE001
+            err = e
+
+        status_key, label_text, color = classify(latency, err)
+        self._net_status = status_key
+        try:
+            self.net_status_label.configure(text=f"● {label_text}", text_color=color)
+        except Exception:
+            pass
+
+        self.after(10000, self._update_network_status)
