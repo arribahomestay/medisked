@@ -1373,13 +1373,31 @@ class ReceptionistAppointmentPage(ctk.CTkFrame):
         free_text = self.notes_entry.get("1.0", "end").strip()
         date_str = self.date_entry.get().strip()
 
-        if not doctor or not date_str or not patient:
-            messagebox.showwarning("Validation", "Doctor, date, and patient name are required.")
-            return
+        missing = []
+        if not patient:
+            missing.append("Full name")
+        if not contact:
+            missing.append("Contact no.")
+        if not address:
+            missing.append("Address")
+        if not about:
+            missing.append("Appointment about")
+        if not free_text:
+            missing.append("Reason / notes")
+        if not doctor:
+            missing.append("Doctor")
+        if not date_str:
+            missing.append("Date")
 
         schedule_str = self.selected_schedule
         if not schedule_str:
-            messagebox.showwarning("Validation", "Select an available time slot.")
+            missing.append("Time slot")
+
+        if missing:
+            messagebox.showwarning(
+                "Validation",
+                "Please fill in all required fields before saving:\n- " + "\n- ".join(missing),
+            )
             return
 
         try:
