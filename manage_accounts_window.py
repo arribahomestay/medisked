@@ -34,7 +34,7 @@ class ManageAccountsWindow(ctk.CTkToplevel):
         title = ctk.CTkLabel(self, text="Account Management", font=("Segoe UI", 20, "bold"))
         title.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
 
-        # Top row: profile settings and users list
+        
         top_row = ctk.CTkFrame(self, fg_color="transparent")
         top_row.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="ew")
         top_row.grid_columnconfigure(0, weight=0)
@@ -46,7 +46,7 @@ class ManageAccountsWindow(ctk.CTkToplevel):
 
         users_btn = ctk.CTkButton(top_row, text="Users", command=self.toggle_users_view)
         users_btn.grid(row=0, column=1, padx=(0, 0), pady=0, sticky="w")
-        # Add Account tab content
+        
         self.add_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="transparent")
         self.add_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
         self.add_frame.grid_columnconfigure(0, weight=1)
@@ -65,21 +65,21 @@ class ManageAccountsWindow(ctk.CTkToplevel):
         )
         info.grid(row=1, column=0, padx=0, pady=(0, 10), sticky="w")
 
-        # Username
+        
         user_label = ctk.CTkLabel(self.add_frame, text="Username", font=("Segoe UI", 12))
         user_label.grid(row=2, column=0, padx=0, pady=(5, 0), sticky="w")
 
         self.new_username_entry = ctk.CTkEntry(self.add_frame)
         self.new_username_entry.grid(row=3, column=0, padx=0, pady=(0, 10), sticky="ew")
 
-        # Password
+        
         pwd_label = ctk.CTkLabel(self.add_frame, text="Password", font=("Segoe UI", 12))
         pwd_label.grid(row=4, column=0, padx=0, pady=(5, 0), sticky="w")
 
         self.new_password_entry = ctk.CTkEntry(self.add_frame, show="*")
         self.new_password_entry.grid(row=5, column=0, padx=0, pady=(0, 10), sticky="ew")
 
-        # Role selector
+        
         role_label = ctk.CTkLabel(self.add_frame, text="Role", font=("Segoe UI", 12))
         role_label.grid(row=6, column=0, padx=0, pady=(5, 0), sticky="w")
 
@@ -94,10 +94,10 @@ class ManageAccountsWindow(ctk.CTkToplevel):
         add_btn = ctk.CTkButton(self.add_frame, text="Add Account", command=self.add_account)
         add_btn.grid(row=8, column=0, padx=0, pady=(10, 10), sticky="e")
 
-        # Users list tab content (initially hidden)
+        
         self.users_frame = ctk.CTkScrollableFrame(self, corner_radius=10)
         self.users_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
-        # Three shared columns so table lines up vertically
+        
         self.users_frame.grid_columnconfigure(0, weight=1)
         self.users_frame.grid_columnconfigure(1, weight=1)
         self.users_frame.grid_columnconfigure(2, weight=1)
@@ -108,19 +108,19 @@ class ManageAccountsWindow(ctk.CTkToplevel):
 
     def show_add_tab(self):
         """Switch to the Add Staff Account tab."""
-        # Make sure the add account form is visible and users list is hidden
+        
         self.users_frame.grid_remove()
         self.add_frame.grid()
 
     def toggle_users_view(self):
         """Toggle between Add Account view and Users list view."""
         if self.users_frame.winfo_ismapped():
-            # Switch back to Add Account tab
+            
             self.users_frame.grid_remove()
             self.add_frame.grid()
             return
 
-        # Populate and show users list
+        
         for child in self.users_frame.winfo_children():
             child.destroy()
 
@@ -145,7 +145,7 @@ class ManageAccountsWindow(ctk.CTkToplevel):
             self.users_frame.grid()
             return
 
-        # Header row
+        
         header_padx = 4
         ctk.CTkLabel(
             self.users_frame, text="Username", font=("Segoe UI", 11, "bold")
@@ -169,7 +169,7 @@ class ManageAccountsWindow(ctk.CTkToplevel):
                 row=row_index, column=2, sticky="w", padx=(2, header_padx), pady=1
             )
 
-        # Switch to Users tab
+        
         self.add_frame.grid_remove()
         self.users_frame.grid()
 
@@ -194,7 +194,7 @@ class ManageAccountsWindow(ctk.CTkToplevel):
                 (username, password, role),
             )
 
-            # If this is a doctor account, ensure a matching doctor record exists
+           
             if role == "doctor":
                 cur.execute(
                     "SELECT id FROM doctors WHERE name = ?",

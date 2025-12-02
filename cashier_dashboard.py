@@ -152,9 +152,24 @@ class CashierDashboard(ctk.CTk):
         by = self.avatar_button.winfo_rooty()
         bw = self.avatar_button.winfo_width()
 
-        width, height = 180, 110
-        x = int(bx + bw - width)
-        y = int(by + self.avatar_button.winfo_height() + 4)
+        width, height = 200, 140
+
+        desired_x = bx - width + bw
+        desired_y = by + self.avatar_button.winfo_height() + 4
+
+        root_x = self.winfo_rootx()
+        root_y = self.winfo_rooty()
+        root_w = self.winfo_width()
+        root_h = self.winfo_height()
+
+        min_x = root_x
+        max_x = root_x + max(root_w - width, 0)
+        min_y = root_y
+        max_y = root_y + max(root_h - height, 0)
+
+        x = max(min_x, min(desired_x, max_x))
+        y = max(min_y, min(desired_y, max_y))
+
         self.account_menu.geometry(f"{width}x{height}+{x}+{y}")
 
         self.account_menu.grid_columnconfigure(0, weight=1)
@@ -167,6 +182,14 @@ class CashierDashboard(ctk.CTk):
         )
         btn_settings.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
 
+        btn_security = ctk.CTkButton(
+            self.account_menu,
+            text="SECURITY",
+            anchor="w",
+            command=self._open_security,
+        )
+        btn_security.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
+
         btn_logout = ctk.CTkButton(
             self.account_menu,
             text="LOGOUT",
@@ -175,22 +198,27 @@ class CashierDashboard(ctk.CTk):
             hover_color="#991b1b",
             command=self._logout_from_menu,
         )
-        btn_logout.grid(row=1, column=0, padx=10, pady=(4, 8), sticky="ew")
+        btn_logout.grid(row=2, column=0, padx=10, pady=(4, 8), sticky="ew")
 
-    def _open_profile_settings(self):
+    def _close_account_menu(self):
         if self.account_menu is not None and self.account_menu.winfo_exists():
             self.account_menu.destroy()
         self.account_menu = None
+
+    def _open_profile_settings(self):
+        self._close_account_menu()
 
         if self.profile_window is None or not self.profile_window.winfo_exists():
             self.profile_window = CashierProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
         else:
             self.profile_window.focus()
 
+    def _open_security(self):
+        self._close_account_menu()
+        messagebox.showinfo("Security", "WALA PANI")
+
     def _logout_from_menu(self):
-        if self.account_menu is not None and self.account_menu.winfo_exists():
-            self.account_menu.destroy()
-        self.account_menu = None
+        self._close_account_menu()
         self.logout()
 
     def logout(self):

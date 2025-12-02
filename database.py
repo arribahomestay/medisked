@@ -8,7 +8,6 @@ def init_db(db_path: str = DB_NAME) -> None:
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
 
-    # Create users table if not exists
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS users (
@@ -20,7 +19,7 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # System settings key-value store
+     
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS system_settings (
@@ -30,7 +29,7 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # Activity logs table
+     
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS activity_logs (
@@ -44,14 +43,14 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # Ensure full_name column exists for storing the person's real name
+    
     try:
         cur.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
     except sqlite3.OperationalError:
-        # Column already exists or table not yet created; safe to ignore
+        
         pass
 
-    # Create basic appointments table for records page
+    
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS appointments (
@@ -68,11 +67,11 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # Ensure new columns exist on older databases
+    
     try:
         cur.execute("ALTER TABLE appointments ADD COLUMN is_rescheduled INTEGER NOT NULL DEFAULT 0")
     except sqlite3.OperationalError:
-        # Column already exists
+        
         pass
     try:
         cur.execute("ALTER TABLE appointments ADD COLUMN barcode TEXT")
@@ -87,7 +86,7 @@ def init_db(db_path: str = DB_NAME) -> None:
     except sqlite3.OperationalError:
         pass
 
-    # Doctors table
+    
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS doctors (
@@ -100,7 +99,7 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # Doctor availability per day/slot
+    
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS doctor_availability (
@@ -117,13 +116,13 @@ def init_db(db_path: str = DB_NAME) -> None:
         """
     )
 
-    # Ensure only the default admin account exists automatically
+    
     cur.execute(
         "INSERT OR IGNORE INTO users (username, password, role) VALUES (?, ?, ?)",
         ("admin", "admin123", "admin"),
     )
 
-    # Default system settings
+    
     cur.execute(
         "INSERT OR IGNORE INTO system_settings (key, value) VALUES ('activity_logging_enabled', '1')"
     )
@@ -131,14 +130,13 @@ def init_db(db_path: str = DB_NAME) -> None:
         "INSERT OR IGNORE INTO system_settings (key, value) VALUES ('show_login_success_popup', '1')"
     )
 
-    # Clean up any old sample seed data (doctors / appointments) if it exists
-    # Remove the sample doctor we previously inserted
+    
     cur.execute(
         "DELETE FROM doctors WHERE name = ? AND notes = ?",
         ("Dr. Smith", "Sample doctor"),
     )
 
-    # Remove sample appointments that were auto-seeded before
+    
     cur.execute(
         "DELETE FROM appointments WHERE schedule IN (?,?,?)",
         (
@@ -184,7 +182,7 @@ def log_activity(username: str | None, role: str | None, action: str, details: s
 
     Timestamps are stored as 'YYYY-MM-DD hh:mm:ss AM/PM'.
     """
-    # Check if logging is enabled; if the table is missing or setting not present, default to on.
+    
     try:
         enabled = get_setting("activity_logging_enabled", "1")
     except Exception:

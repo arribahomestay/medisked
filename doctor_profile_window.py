@@ -11,7 +11,7 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         super().__init__(master)
 
         self.title("Doctor Profile")
-        width, height = 500, 420
+        width, height = 420, 420
         self.geometry(f"{width}x{height}")
         self.resizable(False, False)
 
@@ -86,7 +86,7 @@ class DoctorProfileWindow(ctk.CTkToplevel):
         self.password_entry.grid(row=6, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        buttons_frame.grid(row=9, column=0, padx=20, pady=(10, 10), sticky="e")
+        buttons_frame.grid(row=7, column=0, padx=20, pady=(10, 10), sticky="e")
 
         logout_button = ctk.CTkButton(
             buttons_frame,

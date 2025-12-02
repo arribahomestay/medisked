@@ -50,6 +50,7 @@ class CashierProfileWindow(ctk.CTkToplevel):
         self.bind("<Configure>", _enforce_position)
 
         self.username = username
+        self.master_ref = master
 
         self.grid_columnconfigure(0, weight=1)
 
@@ -72,16 +73,26 @@ class CashierProfileWindow(ctk.CTkToplevel):
         buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
         buttons_frame.grid(row=5, column=0, padx=20, pady=(10, 10), sticky="e")
 
+        logout_button = ctk.CTkButton(
+            buttons_frame,
+            text="Logout",
+            width=90,
+            fg_color="#b91c1c",
+            hover_color="#991b1b",
+            command=self._logout,
+        )
+        logout_button.grid(row=0, column=0, padx=(0, 8))
+
+        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
+        save_button.grid(row=0, column=1)
+
         close_button = ctk.CTkButton(
             buttons_frame,
             text="Close",
             width=80,
             command=self.destroy,
         )
-        close_button.grid(row=0, column=1, padx=(8, 0))
-
-        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
-        save_button.grid(row=0, column=0)
+        close_button.grid(row=0, column=2, padx=(8, 0))
 
     def save_profile(self):
         new_username = self.username_entry.get().strip()
@@ -126,4 +137,16 @@ class CashierProfileWindow(ctk.CTkToplevel):
             "Profile",
             "Profile updated successfully. Use the new username the next time you log in.",
         )
+        self.destroy()
+
+    def _logout(self):
+        from tkinter import messagebox as _mb
+
+        if not hasattr(self.master_ref, "logout"):
+            self.destroy()
+            return
+        if not _mb.askyesno("Confirm Logout", "Are you sure you want to logout?"):
+            return
+        self.master_ref.should_relogin = True
+        self.master_ref.destroy()
         self.destroy()
