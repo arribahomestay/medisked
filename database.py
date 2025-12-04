@@ -44,6 +44,18 @@ def init_db(db_path: str = DB_NAME) -> None:
     )
 
     
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            last_password TEXT,
+            requested_at TEXT NOT NULL
+        )
+        """
+    )
+
+    
     try:
         cur.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
     except sqlite3.OperationalError:

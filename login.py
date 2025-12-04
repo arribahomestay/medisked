@@ -149,6 +149,7 @@ class LoginApp(ctk.CTk):
             font=("Segoe UI", 10, "underline"),
         )
         self.forgot_label.grid(row=0, column=1, sticky="e")
+        self.forgot_label.bind("<Button-1>", lambda _e: self.open_forgot_password())
 
         # Login button
         self.login_button = ctk.CTkButton(
@@ -164,6 +165,127 @@ class LoginApp(ctk.CTk):
 
         # Allow pressing Enter to trigger login
         self.bind("<Return>", lambda event: self.handle_login())
+
+    def open_forgot_password(self):
+        """Open a window to request a password reset from the admin.
+
+        User must enter their username and last password. A request is
+        stored for the admin to review in the Manage Accounts > Requests tab.
+        """
+
+        win = ctk.CTkToplevel(self)
+        win.title("Forgot Password")
+        win.geometry("460x300")
+        win.resizable(False, False)
+        win.transient(self)
+        win.grab_set()
+
+        win.grid_rowconfigure(1, weight=1)
+        win.grid_columnconfigure(0, weight=1)
+
+        title = ctk.CTkLabel(
+            win,
+            text="Request password reset",
+            font=("Segoe UI", 16, "bold"),
+        )
+        title.grid(row=0, column=0, padx=20, pady=(16, 4), sticky="w")
+
+        body = ctk.CTkFrame(win, corner_radius=10)
+        body.grid(row=1, column=0, padx=20, pady=(4, 16), sticky="nsew")
+        body.grid_columnconfigure(0, weight=1)
+
+        info = ctk.CTkLabel(
+            body,
+            text="Enter your username and last password. A reset request\nwill be sent to the admin.",
+            font=("Segoe UI", 11),
+            anchor="w",
+            justify="left",
+        )
+        info.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+
+        user_label = ctk.CTkLabel(body, text="Username", font=("Segoe UI", 11))
+        user_label.grid(row=1, column=0, padx=16, pady=(4, 0), sticky="w")
+
+        username_entry = ctk.CTkEntry(body, placeholder_text="username")
+        username_entry.grid(row=2, column=0, padx=16, pady=(0, 8), sticky="ew")
+
+        pwd_label = ctk.CTkLabel(body, text="Last password", font=("Segoe UI", 11))
+        pwd_label.grid(row=3, column=0, padx=16, pady=(4, 0), sticky="w")
+
+        password_entry = ctk.CTkEntry(body, placeholder_text="Last password", show="*")
+        password_entry.grid(row=4, column=0, padx=16, pady=(0, 8), sticky="ew")
+
+        btn_row = ctk.CTkFrame(body, fg_color="transparent")
+        btn_row.grid(row=5, column=0, padx=16, pady=(4, 12), sticky="e")
+        btn_row.grid_columnconfigure(0, weight=0)
+        btn_row.grid_columnconfigure(1, weight=0)
+
+        def _send():
+            uname = username_entry.get().strip()
+            last_pwd = password_entry.get().strip()
+
+            if not uname or not last_pwd:
+                messagebox.showwarning("Forgot Password", "Please enter username and last password.")
+                return
+
+            import sqlite3
+            from datetime import datetime
+
+            ts = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+
+            try:
+                conn = sqlite3.connect(DB_NAME)
+                cur = conn.cursor()
+
+                # Ensure username exists before recording a request
+                cur.execute("SELECT 1 FROM users WHERE username = ?", (uname,))
+                if cur.fetchone() is None:
+                    conn.close()
+                    messagebox.showerror("Forgot Password", "Username does not exist in the system.")
+                    return
+
+                cur.execute(
+                    "INSERT INTO password_reset_requests (username, last_password, requested_at) VALUES (?, ?, ?)",
+                    (uname, last_pwd, ts),
+                )
+                conn.commit()
+                conn.close()
+            except Exception as exc:
+                messagebox.showerror("Forgot Password", f"Failed to send request: {exc}")
+                return
+
+            try:
+                log_activity(uname, None, "password_reset_request", "User requested password reset")
+            except Exception:
+                pass
+
+            messagebox.showinfo(
+                "Forgot Password",
+                "Your request has been sent to the admin. They will review it and update your account.",
+            )
+            try:
+                win.destroy()
+            except Exception:
+                pass
+
+        cancel_btn = ctk.CTkButton(btn_row, text="Cancel", width=80, command=win.destroy)
+        cancel_btn.grid(row=0, column=0, padx=(0, 8))
+
+        send_btn = ctk.CTkButton(btn_row, text="Request reset", width=120, command=_send)
+        send_btn.grid(row=0, column=1)
+
+        # Center forgot-password window over login window
+        self.update_idletasks()
+        win.update_idletasks()
+        parent_x = self.winfo_rootx()
+        parent_y = self.winfo_rooty()
+        parent_w = self.winfo_width()
+        parent_h = self.winfo_height()
+        win_w = win.winfo_width()
+        win_h = win.winfo_height()
+        x = parent_x + (parent_w - win_w) // 2
+        y = parent_y + (parent_h - win_h) // 2
+        win.geometry(f"{win_w}x{win_h}+{x}+{y}")
 
     def handle_login(self):
         username = self.username_entry.get().strip()
