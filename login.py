@@ -13,11 +13,11 @@ class LoginApp(ctk.CTk):
         super().__init__()
 
         # Window config
-        self.title("MEDISKED: HOSPITAL SCHEDULING AND BILLING MANAGMENT SYSTEM - Login")
-        self.geometry("420x460")
+        self.title("MEDISKED - Login")
+        self.geometry("400x520")
         self.resizable(False, False)
 
-        # Window icon (works both in source run and PyInstaller EXE)
+        # Window icon
         if getattr(sys, "frozen", False):
             base_dir = sys._MEIPASS
         else:
@@ -34,136 +34,165 @@ class LoginApp(ctk.CTk):
         except Exception:
             pass
 
-        # Center window on screen (compact size)
+        # Center window
         self.update_idletasks()
-        width = 420
-        height = 460
+        width = 400
+        height = 520
         x = (self.winfo_screenwidth() - width) // 2
         y = (self.winfo_screenheight() - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
 
-        # Set appearance
-        ctk.set_appearance_mode("dark")  # "light", "dark", or "system"
-        ctk.set_default_color_theme("blue")
+        # Set appearance - Dark & Minimal
+        ctk.set_appearance_mode("dark")
+        self.configure(fg_color="#0f172a")  # Deep dark slate background
 
-        # Auth state (used by external main app)
+        # Auth state
         self.authenticated = False
         self.logged_in_user = None
         self.logged_in_role = None
 
-        # Root grid (single centered card)
+        # Main Layout - Centered Column
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Main card
-        self.card_frame = ctk.CTkFrame(self, corner_radius=14)
-        self.card_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
-        self.card_frame.grid_columnconfigure(0, weight=1)
+        # Container Frame (Transparent, just for layout)
+        content_frame = ctk.CTkFrame(self, fg_color="transparent")
+        content_frame.grid(row=0, column=0, padx=40, sticky="ew")
+        content_frame.grid_columnconfigure(0, weight=1)
 
-        # Account icon (no background shape)
-        self.icon_circle = ctk.CTkLabel(
-            self.card_frame,
-            text="👤",
-            font=("Segoe UI", 32),
+        # 1. Header Section
+        # Icon/Logo Placeholder
+        icon_label = ctk.CTkLabel(
+            content_frame,
+            text="⚕",  # Medical icon
+            font=("Segoe UI", 48),
+            text_color="#3b82f6"
         )
-        self.icon_circle.grid(row=0, column=0, pady=(24, 10))
+        icon_label.grid(row=0, column=0, pady=(0, 10))
 
         # Title
-        self.logo_label = ctk.CTkLabel(
-            self.card_frame,
-            text="Login to Your Account",
-            font=("Segoe UI", 18, "bold"),
+        title_label = ctk.CTkLabel(
+            content_frame,
+            text="Welcome Back",
+            font=("Segoe UI", 24, "bold"),
+            text_color="white"
         )
-        self.logo_label.grid(row=1, column=0, padx=24, pady=(0, 16))
+        title_label.grid(row=1, column=0, pady=(0, 5))
 
-        # Username label + entry
-        self.username_label = ctk.CTkLabel(
-            self.card_frame,
-            text="Username",
-            font=("Segoe UI", 11),
+        subtitle_label = ctk.CTkLabel(
+            content_frame,
+            text="Sign in to continue to Medisked",
+            font=("Segoe UI", 13),
+            text_color="#94a3b8" # Slate 400
         )
-        self.username_label.grid(row=2, column=0, padx=24, sticky="w")
+        subtitle_label.grid(row=2, column=0, pady=(0, 40))
 
+        # 2. Input Section
+        # Username
         self.username_entry = ctk.CTkEntry(
-            self.card_frame,
-            placeholder_text="Enter username",
-            height=36,
+            content_frame,
+            placeholder_text="Username",
+            height=50,
+            font=("Segoe UI", 14),
             corner_radius=8,
+            fg_color="#1e293b",     # Slate 800
+            border_color="#334155", # Slate 700
+            border_width=1,
+            text_color="white",
+            placeholder_text_color="#64748b"
         )
-        self.username_entry.grid(row=3, column=0, padx=24, pady=(4, 10), sticky="ew")
+        self.username_entry.grid(row=3, column=0, pady=(0, 15), sticky="ew")
 
-        # Password label
-        self.password_label = ctk.CTkLabel(
-            self.card_frame,
-            text="Password",
-            font=("Segoe UI", 11),
-        )
-        self.password_label.grid(row=4, column=0, padx=24, sticky="w")
-
-        # Password row (entry with eye button inside)
-        self.password_frame = ctk.CTkFrame(self.card_frame, fg_color="transparent")
-        self.password_frame.grid(row=5, column=0, padx=24, pady=(4, 10), sticky="ew")
-        self.password_frame.grid_columnconfigure(0, weight=1)
+        # Password Frame (for the eye button)
+        password_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+        password_frame.grid(row=4, column=0, pady=(0, 10), sticky="ew")
+        password_frame.grid_columnconfigure(0, weight=1)
 
         self.password_entry = ctk.CTkEntry(
-            self.password_frame,
-            placeholder_text="Enter password",
+            password_frame,
+            placeholder_text="Password",
             show="*",
-            height=36,
+            height=50,
+            font=("Segoe UI", 14),
             corner_radius=8,
+            fg_color="#1e293b",
+            border_color="#334155",
+            border_width=1,
+            text_color="white",
+            placeholder_text_color="#64748b"
         )
         self.password_entry.grid(row=0, column=0, sticky="ew")
 
         self.show_password = False
         self.eye_button = ctk.CTkButton(
-            self.password_frame,
+            password_frame,
             text="👁",
-            width=28,
-            height=24,
-            corner_radius=0,
+            width=30,
+            height=30,
             fg_color="transparent",
             hover_color=None,
-            border_width=0,
+            text_color="#94a3b8",
+            font=("Segoe UI", 16),
             command=self.toggle_password_visibility,
         )
-        self.eye_button.place(relx=0.95, rely=0.5, anchor="center")
+        self.eye_button.place(relx=1.0, rely=0.5, anchor="e", x=-10)
 
-        # Bottom row: remember me + forgot password
-        bottom_row = ctk.CTkFrame(self.card_frame, fg_color="transparent")
-        bottom_row.grid(row=6, column=0, padx=24, pady=(0, 10), sticky="ew")
-        bottom_row.grid_columnconfigure(0, weight=1)
-        bottom_row.grid_columnconfigure(1, weight=0)
+        # 3. Actions (Remember / Forgot)
+        actions_row = ctk.CTkFrame(content_frame, fg_color="transparent")
+        actions_row.grid(row=5, column=0, pady=(0, 30), sticky="ew")
+        actions_row.grid_columnconfigure(1, weight=1)
 
         self.remember_var = ctk.BooleanVar(value=False)
         self.remember_check = ctk.CTkCheckBox(
-            bottom_row,
+            actions_row,
             text="Remember me",
             variable=self.remember_var,
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 12),
+            text_color="#cbd5e1",
+            fg_color="#3b82f6",
+            border_color="#475569",
+            hover_color="#3b82f6",
+            checkmark_color="white",
+            corner_radius=4,
+            width=20,
+            height=20
         )
         self.remember_check.grid(row=0, column=0, sticky="w")
 
         self.forgot_label = ctk.CTkLabel(
-            bottom_row,
+            actions_row,
             text="Forgot password?",
-            font=("Segoe UI", 10, "underline"),
+            font=("Segoe UI", 12, "bold"),
+            text_color="#3b82f6",
+            cursor="hand2"
         )
         self.forgot_label.grid(row=0, column=1, sticky="e")
         self.forgot_label.bind("<Button-1>", lambda _e: self.open_forgot_password())
 
-        # Login button
+        # 4. Login Button
         self.login_button = ctk.CTkButton(
-            self.card_frame,
-            text="Login",
-            height=38,
-            corner_radius=10,
-            fg_color="#0d74d1",
-            hover_color="#0b63b3",
+            content_frame,
+            text="Sign In",
+            font=("Segoe UI", 15, "bold"),
+            height=50,
+            corner_radius=8,
+            fg_color="#3b82f6",     # Blue 500
+            hover_color="#2563eb",  # Blue 600
+            text_color="white",
             command=self.handle_login,
         )
-        self.login_button.grid(row=7, column=0, padx=24, pady=(10, 24), sticky="ew")
+        self.login_button.grid(row=6, column=0, sticky="ew")
 
-        # Allow pressing Enter to trigger login
+        # Footer
+        footer_label = ctk.CTkLabel(
+            self,
+            text="© 2025 Medisked System",
+            font=("Segoe UI", 10),
+            text_color="#475569"
+        )
+        footer_label.place(relx=0.5, rely=0.95, anchor="center")
+
+        # Key binding
         self.bind("<Return>", lambda event: self.handle_login())
 
     def open_forgot_password(self):
@@ -175,8 +204,9 @@ class LoginApp(ctk.CTk):
 
         win = ctk.CTkToplevel(self)
         win.title("Forgot Password")
-        win.geometry("460x300")
+        win.geometry("400x320")
         win.resizable(False, False)
+        win.configure(fg_color="#0f172a") # Theme BG
         win.transient(self)
         win.grab_set()
 
@@ -185,47 +215,65 @@ class LoginApp(ctk.CTk):
 
         title = ctk.CTkLabel(
             win,
-            text="Request password reset",
-            font=("Segoe UI", 16, "bold"),
+            text="Reset Password",
+            font=("Segoe UI", 18, "bold"),
+            text_color="white"
         )
-        title.grid(row=0, column=0, padx=20, pady=(16, 4), sticky="w")
+        title.grid(row=0, column=0, padx=24, pady=(20, 5), sticky="w")
 
-        body = ctk.CTkFrame(win, corner_radius=10)
-        body.grid(row=1, column=0, padx=20, pady=(4, 16), sticky="nsew")
+        body = ctk.CTkFrame(win, fg_color="transparent")
+        body.grid(row=1, column=0, padx=24, pady=(5, 20), sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
 
         info = ctk.CTkLabel(
             body,
-            text="Enter your username and last password. A reset request\nwill be sent to the admin.",
-            font=("Segoe UI", 11),
+            text="Enter your username and last known password.\nA reset request will be sent to the admin.",
+            font=("Segoe UI", 12),
+            text_color="#94a3b8", # Slate 400
             anchor="w",
             justify="left",
         )
-        info.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+        info.grid(row=0, column=0, pady=(0, 15), sticky="w")
 
-        user_label = ctk.CTkLabel(body, text="Username", font=("Segoe UI", 11))
-        user_label.grid(row=1, column=0, padx=16, pady=(4, 0), sticky="w")
+        username_entry = ctk.CTkEntry(
+            body, 
+            placeholder_text="Username",
+            height=40,
+            font=("Segoe UI", 13),
+            corner_radius=6,
+            fg_color="#1e293b",
+            border_color="#334155",
+            border_width=1,
+            text_color="white",
+            placeholder_text_color="#64748b"
+        )
+        username_entry.grid(row=1, column=0, pady=(0, 10), sticky="ew")
 
-        username_entry = ctk.CTkEntry(body, placeholder_text="username")
-        username_entry.grid(row=2, column=0, padx=16, pady=(0, 8), sticky="ew")
-
-        pwd_label = ctk.CTkLabel(body, text="Last password", font=("Segoe UI", 11))
-        pwd_label.grid(row=3, column=0, padx=16, pady=(4, 0), sticky="w")
-
-        password_entry = ctk.CTkEntry(body, placeholder_text="Last password", show="*")
-        password_entry.grid(row=4, column=0, padx=16, pady=(0, 8), sticky="ew")
+        password_entry = ctk.CTkEntry(
+            body, 
+            placeholder_text="Last password", 
+            show="*",
+            height=40,
+            font=("Segoe UI", 13),
+            corner_radius=6,
+            fg_color="#1e293b",
+            border_color="#334155",
+            border_width=1,
+            text_color="white",
+            placeholder_text_color="#64748b"
+        )
+        password_entry.grid(row=2, column=0, pady=(0, 20), sticky="ew")
 
         btn_row = ctk.CTkFrame(body, fg_color="transparent")
-        btn_row.grid(row=5, column=0, padx=16, pady=(4, 12), sticky="e")
-        btn_row.grid_columnconfigure(0, weight=0)
-        btn_row.grid_columnconfigure(1, weight=0)
+        btn_row.grid(row=3, column=0, sticky="ew")
+        btn_row.grid_columnconfigure(1, weight=1)
 
         def _send():
             uname = username_entry.get().strip()
             last_pwd = password_entry.get().strip()
 
             if not uname or not last_pwd:
-                messagebox.showwarning("Forgot Password", "Please enter username and last password.")
+                messagebox.showwarning("Validation", "Please fill in all fields.")
                 return
 
             import sqlite3
@@ -237,11 +285,11 @@ class LoginApp(ctk.CTk):
                 conn = sqlite3.connect(DB_NAME)
                 cur = conn.cursor()
 
-                # Ensure username exists before recording a request
+                # Ensure username exists
                 cur.execute("SELECT 1 FROM users WHERE username = ?", (uname,))
                 if cur.fetchone() is None:
                     conn.close()
-                    messagebox.showerror("Forgot Password", "Username does not exist in the system.")
+                    messagebox.showerror("Error", "Username does not exist in the system.")
                     return
 
                 cur.execute(
@@ -251,7 +299,7 @@ class LoginApp(ctk.CTk):
                 conn.commit()
                 conn.close()
             except Exception as exc:
-                messagebox.showerror("Forgot Password", f"Failed to send request: {exc}")
+                messagebox.showerror("Error", f"Failed to send request: {exc}")
                 return
 
             try:
@@ -260,51 +308,57 @@ class LoginApp(ctk.CTk):
                 pass
 
             messagebox.showinfo(
-                "Forgot Password",
-                "Your request has been sent to the admin. They will review it and update your account.",
+                "Request Sent",
+                "Your password reset request has been sent to the admin.",
             )
-            try:
-                win.destroy()
-            except Exception:
-                pass
+            win.destroy()
 
-        cancel_btn = ctk.CTkButton(btn_row, text="Cancel", width=80, command=win.destroy)
-        cancel_btn.grid(row=0, column=0, padx=(0, 8))
+        cancel_btn = ctk.CTkButton(
+            btn_row, 
+            text="Cancel", 
+            width=100,
+            fg_color="transparent", 
+            border_width=1,
+            border_color="#475569",
+            text_color="#cbd5e1",
+            hover_color="#1e293b",
+            command=win.destroy
+        )
+        cancel_btn.pack(side="left")
 
-        send_btn = ctk.CTkButton(btn_row, text="Request reset", width=120, command=_send)
-        send_btn.grid(row=0, column=1)
+        send_btn = ctk.CTkButton(
+            btn_row, 
+            text="Send Request", 
+            width=140, 
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            text_color="white",
+            command=_send
+        )
+        send_btn.pack(side="right")
 
-        # Center forgot-password window over login window
+        # Center
         self.update_idletasks()
         win.update_idletasks()
         parent_x = self.winfo_rootx()
         parent_y = self.winfo_rooty()
-        parent_w = self.winfo_width()
-        parent_h = self.winfo_height()
-        win_w = win.winfo_width()
-        win_h = win.winfo_height()
-        x = parent_x + (parent_w - win_w) // 2
-        y = parent_y + (parent_h - win_h) // 2
-        win.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        win.geometry(f"+{parent_x + (self.winfo_width()-400)//2}+{parent_y + (self.winfo_height()-320)//2}")
 
     def handle_login(self):
         username = self.username_entry.get().strip()
         password = self.password_entry.get().strip()
 
         if not username or not password:
-            messagebox.showwarning("Validation", "Please enter username and password.")
             return
 
         role = self.authenticate(username, password)
 
         if role is not None:
-            # Log successful login
             try:
                 log_activity(username, role, "login_success", "User logged in")
             except Exception:
                 pass
 
-            # Decide whether to show the final popup after loading
             show_popup = True
             try:
                 show_popup = get_setting("show_login_success_popup", "1") == "1"
@@ -312,16 +366,39 @@ class LoginApp(ctk.CTk):
                 pass
 
             def _complete_login():
-                # Optional final popup once the fake loading finishes
                 if show_popup:
-                    messagebox.showinfo("Login Success", f"Welcome {username} (role: {role})")
+                    # Show custom styled success popup
+                    succ = ctk.CTkToplevel(self)
+                    succ.title("")
+                    succ.geometry("300x160")
+                    succ.configure(fg_color="#0f172a") # Theme BG
+                    succ.overrideredirect(True) # Frameless
+                    
+                    # Center on screen
+                    sw = self.winfo_screenwidth()
+                    sh = self.winfo_screenheight()
+                    succ.geometry(f"+{(sw-300)//2}+{(sh-160)//2}")
+                    
+                    # Container frame with border
+                    container = ctk.CTkFrame(
+                        succ, 
+                        fg_color="#0f172a", 
+                        border_width=2, 
+                        border_color="#3b82f6",
+                        corner_radius=0
+                    )
+                    container.pack(expand=True, fill="both")
 
-                self.authenticated = True
-                self.logged_in_user = username
-                self.logged_in_role = role
-                self.destroy()
+                    # Content
+                    ctk.CTkLabel(container, text="✅", font=("Segoe UI", 40)).pack(pady=(20, 5))
+                    ctk.CTkLabel(container, text="Login Successful", font=("Segoe UI", 16, "bold"), text_color="white").pack(pady=0)
+                    ctk.CTkLabel(container, text=f"Welcome, {username}", font=("Segoe UI", 12), text_color="#94a3b8").pack(pady=(5, 0))
 
-            # Show a short fake loading window before completing login
+                    succ.after(1500, succ.destroy)
+                    self.after(1600, lambda: self._finalize_login(username, role))
+                else:
+                    self._finalize_login(username, role)
+
             self._show_login_loading(_complete_login)
         else:
             try:
@@ -329,6 +406,12 @@ class LoginApp(ctk.CTk):
             except Exception:
                 pass
             messagebox.showerror("Login Failed", "Invalid credentials or role.")
+
+    def _finalize_login(self, username, role):
+        self.authenticated = True
+        self.logged_in_user = username
+        self.logged_in_role = role
+        self.destroy()
 
     def toggle_password_visibility(self):
         if self.show_password:
@@ -361,50 +444,48 @@ class LoginApp(ctk.CTk):
     # ------------------------------------------------------------------
 
     def _show_login_loading(self, on_done):
-        """Show a small 'Logging you in...' window for a short random delay.
-
-        This does not really contact any servers, it just gives the user
-        a more natural feeling that the system is working.
-        """
-
-        delay_ms = random.randint(1500, 2600)
+        """Show a small 'Logging you in...' window for a short random delay."""
+        delay_ms = random.randint(1200, 2000)
 
         win = ctk.CTkToplevel(self)
-        win.title("Logging in...")
-        win.geometry("260x120")
+        win.title("")
+        win.geometry("280x140")
         win.resizable(False, False)
+        win.configure(fg_color="#0f172a") # Theme BG
         win.transient(self)
         win.grab_set()
+        
+        # Center relative to parent
+        self.update_idletasks()
+        win.update_idletasks()
+        px = self.winfo_rootx()
+        py = self.winfo_rooty()
+        win.geometry(f"+{px + (self.winfo_width()-280)//2}+{py + (self.winfo_height()-140)//2}")
 
         win.grid_rowconfigure(0, weight=1)
         win.grid_columnconfigure(0, weight=1)
 
-        label = ctk.CTkLabel(
+        # Spinner/Text
+        ctk.CTkLabel(
+            win,
+            text="↻",
+            font=("Segoe UI", 36),
+            text_color="#3b82f6"
+        ).pack(pady=(20, 5))
+
+        ctk.CTkLabel(
             win,
             text="Verifying credentials...",
-            font=("Segoe UI", 13, "bold"),
-        )
-        label.grid(row=0, column=0, padx=20, pady=10, sticky="n")
+            font=("Segoe UI", 12, "bold"),
+            text_color="white"
+        ).pack(pady=(0, 5))
 
-        sub = ctk.CTkLabel(
+        ctk.CTkLabel(
             win,
-            text="Please wait a moment",
+            text="Please wait...",
             font=("Segoe UI", 11),
-        )
-        sub.grid(row=1, column=0, padx=20, pady=(0, 16), sticky="n")
-
-        # Center loading window over login window
-        self.update_idletasks()
-        win.update_idletasks()
-        parent_x = self.winfo_rootx()
-        parent_y = self.winfo_rooty()
-        parent_w = self.winfo_width()
-        parent_h = self.winfo_height()
-        win_w = win.winfo_width()
-        win_h = win.winfo_height()
-        x = parent_x + (parent_w - win_w) // 2
-        y = parent_y + (parent_h - win_h) // 2
-        win.geometry(f"{win_w}x{win_h}+{x}+{y}")
+            text_color="#64748b"
+        ).pack(pady=(0, 15))
 
         def _finish():
             try:

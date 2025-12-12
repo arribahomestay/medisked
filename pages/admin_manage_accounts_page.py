@@ -390,49 +390,85 @@ class AdminManageAccountsPage(ctk.CTkFrame):
             self.users_frame.grid()
             return
 
-        header_padx = 4
-        ctk.CTkLabel(
-            self.users_frame, text="Username", font=("Segoe UI", 11, "bold")
-        ).grid(row=0, column=0, sticky="w", padx=(header_padx, 2), pady=(4, 2))
-        ctk.CTkLabel(
-            self.users_frame, text="Name", font=("Segoe UI", 11, "bold")
-        ).grid(row=0, column=1, sticky="w", padx=2, pady=(4, 2))
-        ctk.CTkLabel(
-            self.users_frame, text="Role", font=("Segoe UI", 11, "bold")
-        ).grid(row=0, column=2, sticky="w", padx=(2, header_padx), pady=(4, 2))
-        ctk.CTkLabel(
-            self.users_frame, text="Actions", font=("Segoe UI", 11, "bold")
-        ).grid(row=0, column=3, sticky="e", padx=(2, header_padx), pady=(4, 2))
-
-        for idx, (uname, full_name, role) in enumerate(rows, start=1):
+        # No header row for the outlined card style (cleaner look)
+        
+        for idx, (uname, full_name, role) in enumerate(rows):
             row_index = idx
-            ctk.CTkLabel(self.users_frame, text=uname).grid(
-                row=row_index, column=0, sticky="w", padx=(header_padx, 2), pady=1
+            
+            # Container for each user
+            row_frame = ctk.CTkFrame(
+                self.users_frame,
+                corner_radius=6,
+                fg_color="transparent",
+                border_width=1,
+                border_color="#3d3d3d"
             )
-            ctk.CTkLabel(self.users_frame, text=full_name or "-").grid(
-                row=row_index, column=1, sticky="w", padx=2, pady=1
-            )
-            ctk.CTkLabel(self.users_frame, text=role).grid(
-                row=row_index, column=2, sticky="w", padx=(2, header_padx), pady=1
-            )
+            row_frame.grid(row=row_index, column=0, columnspan=4, sticky="ew", padx=10, pady=4)
+            
+            # Inner Layout
+            row_frame.grid_columnconfigure(0, weight=1) # Username
+            row_frame.grid_columnconfigure(1, weight=1) # Name
+            row_frame.grid_columnconfigure(2, weight=1) # Role
+            row_frame.grid_columnconfigure(3, weight=0) # Actions
 
-            actions = ctk.CTkFrame(self.users_frame, fg_color="transparent")
-            actions.grid(row=row_index, column=3, padx=(2, header_padx), pady=1, sticky="e")
+            # Username
+            ctk.CTkLabel(
+                row_frame, 
+                text=uname, 
+                font=("Segoe UI", 13, "bold")
+            ).grid(row=0, column=0, sticky="w", padx=15, pady=10)
+
+            # Name
+            ctk.CTkLabel(
+                row_frame, 
+                text=full_name or "-", 
+                font=("Segoe UI", 13),
+                text_color="gray70"
+            ).grid(row=0, column=1, sticky="w", padx=10, pady=10)
+
+            # Role
+            role_color = "gray80"
+            if role == "admin": role_color = "#e11d48"
+            elif role == "doctor": role_color = "#0ea5e9"
+            elif role == "cashier": role_color = "#16a34a"
+            
+            ctk.CTkLabel(
+                row_frame, 
+                text=role.capitalize(), 
+                font=("Segoe UI", 12, "bold"),
+                text_color=role_color
+            ).grid(row=0, column=2, sticky="w", padx=10, pady=10)
+
+            # Actions
+            actions = ctk.CTkFrame(row_frame, fg_color="transparent")
+            actions.grid(row=0, column=3, padx=10, pady=5, sticky="e")
 
             edit_btn = ctk.CTkButton(
                 actions,
                 text="Edit",
-                width=70,
+                width=60,
+                height=26,
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#0d74d1",
+                text_color="#0d74d1",
+                hover_color=("#d0e1f5", "#1a2c42"),
                 command=lambda u=uname: self._open_edit_user(u),
             )
-            edit_btn.grid(row=0, column=0, padx=(0, 4))
+            edit_btn.grid(row=0, column=0, padx=(0, 6))
 
             del_btn = ctk.CTkButton(
                 actions,
                 text="Delete",
-                width=70,
-                fg_color="#b91c1c",
-                hover_color="#991b1b",
+                width=60,
+                height=26,
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#b91c1c",
+                text_color="#b91c1c",
+                hover_color=("#fee2e2", "#450a0a"),
                 command=lambda u=uname: self._delete_user(u),
             )
             del_btn.grid(row=0, column=1)

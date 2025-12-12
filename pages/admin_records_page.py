@@ -133,17 +133,26 @@ class AdminRecordsPage(ctk.CTkFrame):
         for row_index, rec in enumerate(filtered):
             rid, patient, doctor, schedule, notes, is_paid, amount_paid = rec
 
-            # Each record is rendered as a single "folder-like" row with summary text
-            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8)
-            row_frame.grid(row=row_index, column=0, sticky="ew", padx=0, pady=4)
-            row_frame.grid_columnconfigure(0, weight=1)
-            row_frame.grid_columnconfigure(1, weight=0)
+            # Outlined Row Item
+            row_frame = ctk.CTkFrame(
+                self.table_frame, 
+                corner_radius=6, 
+                fg_color="transparent", 
+                border_width=1, 
+                border_color="#3d3d3d"
+            )
+            row_frame.grid(row=row_index, column=0, sticky="ew", padx=10, pady=4)
+            row_frame.grid_columnconfigure(1, weight=1)
 
             pretty_schedule = self._format_schedule(schedule)
             paid_text = "PAID" if is_paid else "UNPAID"
             amount_text = f"₱{amount_paid:,.2f}" if amount_paid else "-"
+            
+            # Using a combined label for uniformity with the requested style, 
+            # or we can split it. The user asked for "outline very items".
+            # Let's keep the textual summary but ensure the container is outlined.
             summary_text = (
-                f"#{rid}  ·  {patient}  ·  {doctor}  ·  {pretty_schedule}  ·  {paid_text}  ·  {amount_text}"
+                 f"#{rid}  ·  {patient}  ·  {doctor}  ·  {pretty_schedule}  ·  {paid_text}  ·  {amount_text}"
             )
 
             summary_label = ctk.CTkLabel(
@@ -151,41 +160,58 @@ class AdminRecordsPage(ctk.CTkFrame):
                 text=summary_text,
                 anchor="w",
                 justify="left",
+                font=("Segoe UI", 13)
             )
-            summary_label.grid(row=0, column=0, padx=12, pady=6, sticky="w")
+            summary_label.grid(row=0, column=0, padx=15, pady=12, sticky="w")
+            # We assign column 1 to a spacer if needed, but here label is col 0, actions col 2.
+            # Let's push actions to the right using weight on a middle column.
+            row_frame.grid_columnconfigure(0, weight=0)
+            row_frame.grid_columnconfigure(1, weight=1)
 
             actions_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
-            actions_frame.grid(row=0, column=1, padx=(4, 8), pady=6, sticky="e")
+            actions_frame.grid(row=0, column=2, padx=15, pady=10, sticky="e")
 
             view_btn = ctk.CTkButton(
                 actions_frame,
-                text="VIEW",
-                width=50,
-                height=24,
-                fg_color="#0d74d1",
-                hover_color="#0b63b3",
+                text="View",
+                width=60,
+                height=26,
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#0d74d1",
+                text_color="#0d74d1",
+                hover_color=("#d0e1f5", "#1a2c42"),
                 command=lambda r=rec: self._view_details(r),
             )
-            view_btn.grid(row=0, column=0, padx=(0, 4))
+            view_btn.grid(row=0, column=0, padx=(0, 6))
 
             edit_btn = ctk.CTkButton(
                 actions_frame,
-                text="EDIT",
-                width=50,
-                height=24,
-                fg_color="#1c9b3b",
-                hover_color="#178533",
+                text="Edit",
+                width=60,
+                height=26,
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#1c9b3b",
+                text_color="#1c9b3b",
+                hover_color=("#d1f0d9", "#1e3324"),
                 command=lambda r=rec: self._edit_record(r),
             )
-            edit_btn.grid(row=0, column=1, padx=(0, 4))
+            edit_btn.grid(row=0, column=1, padx=(0, 6))
 
             delete_btn = ctk.CTkButton(
                 actions_frame,
-                text="DELETE",
+                text="Delete",
                 width=60,
-                height=24,
-                fg_color="#dc2626",
-                hover_color="#b91c1c",
+                height=26,
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#dc2626",
+                text_color="#dc2626",
+                hover_color=("#fee2e2", "#450a0a"),
                 command=lambda r=rec: self._delete_record(r),
             )
             delete_btn.grid(row=0, column=2, padx=(0, 0))
@@ -197,7 +223,7 @@ class AdminRecordsPage(ctk.CTkFrame):
             row_frame.bind("<Button-1>", _open_details)
             summary_label.bind("<Button-1>", _open_details)
 
-            # Right-click context menu on the row
+            # Right-click context menu
             def _on_right_click(event, r=rec):
                 self._show_row_menu(event, r)
 
@@ -236,8 +262,8 @@ class AdminRecordsPage(ctk.CTkFrame):
         rid, patient, doctor, schedule, notes, is_paid, amount_paid = record
 
         win = ctk.CTkToplevel(self)
-        win.title(f"Appointment #{rid}")
-        win.geometry("400x260")
+        win.title("")
+        win.geometry("550x550")
 
         win.transient(self)
         win.grab_set()
@@ -249,44 +275,72 @@ class AdminRecordsPage(ctk.CTkFrame):
         parent_y = self.winfo_rooty()
         parent_w = self.winfo_width()
         parent_h = self.winfo_height()
-        win_w = 400
-        win_h = 260
+        win.update_idletasks()
+        win_w = 550
+        win_h = 550
         x = parent_x + (parent_w - win_w) // 2
         y = parent_y + (parent_h - win_h) // 2
         win.geometry(f"{win_w}x{win_h}+{x}+{y}")
 
-        win.grid_columnconfigure(1, weight=1)
+        # Header
+        ctk.CTkLabel(
+            win, 
+            text="Details", 
+            font=("Segoe UI", 22, "bold")
+        ).pack(anchor="w", padx=30, pady=(25, 5))
 
-        ctk.CTkLabel(win, text="Patient:").grid(row=0, column=0, padx=20, pady=(20, 5), sticky="w")
-        ctk.CTkLabel(win, text=patient).grid(row=0, column=1, padx=20, pady=(20, 5), sticky="w")
+        ctk.CTkLabel(
+            win,
+            text=f"Appointment #{rid}",
+            font=("Segoe UI", 14),
+            text_color="gray70"
+        ).pack(anchor="w", padx=30, pady=(0, 15))
 
-        ctk.CTkLabel(win, text="Doctor:").grid(row=1, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=doctor).grid(row=1, column=1, padx=20, pady=5, sticky="w")
+        container = ctk.CTkScrollableFrame(win, corner_radius=0, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=0, pady=(0, 60))
+        container.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(win, text="Schedule:").grid(row=2, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=self._format_schedule(schedule)).grid(
-            row=2,
-            column=1,
-            padx=20,
-            pady=5,
-            sticky="w",
-        )
+        def _add_row(label_text, value_text, r_idx, is_multi=False):
+            frame = ctk.CTkFrame(
+                container, 
+                corner_radius=6, 
+                fg_color="transparent", 
+                border_width=1, 
+                border_color="#3d3d3d"
+            )
+            frame.grid(row=r_idx, column=0, sticky="ew", padx=30, pady=6)
+            frame.grid_columnconfigure(1, weight=1)
+            
+            lbl = ctk.CTkLabel(
+                frame, 
+                text=label_text, 
+                width=100, 
+                anchor="w", 
+                font=("Segoe UI", 12, "bold"), 
+                text_color="gray70"
+            )
+            lbl.grid(row=0, column=0, padx=(15, 5), pady=12, sticky="nw" if is_multi else "w")
+            
+            val = ctk.CTkLabel(
+                frame, 
+                text=value_text, 
+                font=("Segoe UI", 12), 
+                justify="left", 
+                anchor="w",
+                wraplength=340 if is_multi else 0
+            )
+            val.grid(row=0, column=1, padx=(5, 15), pady=12, sticky="w")
+            return frame
 
-        ctk.CTkLabel(win, text="Notes:").grid(row=3, column=0, padx=20, pady=5, sticky="nw")
-        notes_text = notes or ""
-        notes_label = ctk.CTkLabel(win, text=notes_text, justify="left")
-        notes_label.grid(row=3, column=1, padx=20, pady=5, sticky="w")
+        _add_row("Patient:", patient, 0)
+        _add_row("Doctor:", doctor, 1)
+        _add_row("Schedule:", self._format_schedule(schedule), 2)
+        _add_row("Notes:", notes or "", 3, is_multi=True)
+        _add_row("Paid:", "Yes" if is_paid else "No", 4)
+        _add_row("Amount paid:", f"₱{amount_paid:,.2f}" if amount_paid else "-", 5)
 
-        ctk.CTkLabel(win, text="Paid:").grid(row=4, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=("Yes" if is_paid else "No")).grid(row=4, column=1, padx=20, pady=5, sticky="w")
-
-        ctk.CTkLabel(win, text="Amount paid:").grid(row=5, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=(f"₱{amount_paid:,.2f}" if amount_paid else "-")).grid(
-            row=5, column=1, padx=20, pady=5, sticky="w"
-        )
-
-        close_btn = ctk.CTkButton(win, text="Close", command=win.destroy)
-        close_btn.grid(row=6, column=0, columnspan=2, pady=(20, 20))
+        close_btn = ctk.CTkButton(win, text="Close", command=win.destroy, width=120)
+        close_btn.place(relx=0.5, rely=0.94, anchor="center")
 
     def _edit_record(self, record):
         rid, patient, doctor, schedule, notes, _is_paid, _amount_paid = record

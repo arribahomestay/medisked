@@ -145,14 +145,17 @@ class CashierRecordsPage(ctk.CTkFrame):
         for row_index, rec in enumerate(filtered):
             rid, patient, doctor, schedule, amount_paid, is_paid, barcode, notes = rec
 
-            # Card-style container for each record; use a neutral dark gray
-            # background so it matches the overall system theme.
-            row_frame = ctk.CTkFrame(self.table_frame, corner_radius=8, fg_color="#2b2b2b")
-            row_frame.grid(row=row_index, column=0, sticky="ew", padx=4, pady=3)
-            row_frame.grid_columnconfigure(0, weight=1)
-            row_frame.grid_columnconfigure(1, weight=0)
+            # Outlined Row Item
+            row_frame = ctk.CTkFrame(
+                self.table_frame, 
+                corner_radius=6, 
+                fg_color="transparent", 
+                border_width=1, 
+                border_color="#3d3d3d"
+            )
+            row_frame.grid(row=row_index, column=0, sticky="ew", padx=10, pady=4)
+            row_frame.grid_columnconfigure(1, weight=1)
 
-            # Prepare summary values
             pretty_schedule = self._format_schedule(schedule)
             total_value = self._extract_total_from_notes(notes)
             total_text = f"₱{total_value:,.2f}" if total_value is not None else "-"
@@ -160,59 +163,65 @@ class CashierRecordsPage(ctk.CTkFrame):
             paid_text = "PAID" if is_paid else "UNPAID"
             paid_color = "#16a34a" if is_paid else "#dc2626"
 
-            # Top row: ID + schedule + status chip
-            top = ctk.CTkFrame(row_frame, fg_color="transparent")
-            top.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 2))
-            top.grid_columnconfigure(0, weight=1)
+            # 1) ID Column
+            id_lbl = ctk.CTkLabel(
+                row_frame, 
+                text=f"#{rid}", 
+                font=("Segoe UI", 16, "bold"),
+                text_color=("gray60", "gray70")
+            )
+            id_lbl.grid(row=0, column=0, padx=(15, 10), pady=15, sticky="w")
 
-            title_text = f"#{rid} · {pretty_schedule}"
-            title_lbl = ctk.CTkLabel(top, text=title_text, font=("Segoe UI", 12, "bold"), anchor="w")
-            title_lbl.grid(row=0, column=0, sticky="w")
+            # 2) Info Column
+            info_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            info_frame.grid(row=0, column=1, sticky="ew", padx=5)
 
-            # Second row: patient and doctor
-            who_text = f"{patient or '(No patient)'} with {doctor or '(No doctor)'}"
-            who_lbl = ctk.CTkLabel(row_frame, text=who_text, font=("Segoe UI", 12), anchor="w")
-            who_lbl.grid(row=1, column=0, sticky="w", padx=10)
+            main_text = f"{patient or 'Unknown'} with {doctor or 'Unknown'}"
+            sub_text = f"{pretty_schedule}  •  Total: {total_text}  •  Paid: {amt_text}"
 
-            # Third row: totals
-            amounts_text = f"Total: {total_text}   ·   Amount paid: {amt_text}"
-            amounts_lbl = ctk.CTkLabel(row_frame, text=amounts_text, font=("Segoe UI", 11), anchor="w")
-            amounts_lbl.grid(row=2, column=0, sticky="w", padx=10, pady=(0, 6))
+            main_lbl = ctk.CTkLabel(info_frame, text=main_text, font=("Segoe UI", 14, "bold"), anchor="w")
+            main_lbl.pack(side="top", anchor="w")
 
-            # Actions on the right: status pill + VIEW button aligned together
+            sub_lbl = ctk.CTkLabel(info_frame, text=sub_text, font=("Segoe UI", 12), text_color=("gray50", "gray60"), anchor="w")
+            sub_lbl.pack(side="top", anchor="w")
+
+            # 3) Actions Column (Status + View)
             actions_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
-            actions_frame.grid(row=0, column=1, rowspan=3, sticky="e", padx=10, pady=6)
+            actions_frame.grid(row=0, column=2, padx=15, pady=10, sticky="e")
 
+            # Status Chip
             status_chip = ctk.CTkLabel(
                 actions_frame,
                 text=paid_text,
                 font=("Segoe UI", 11, "bold"),
                 fg_color=paid_color,
-                corner_radius=999,
+                corner_radius=6,
                 width=72,
-                anchor="center",
-                padx=10,
-                pady=2,
+                anchor="center"
             )
-            status_chip.grid(row=0, column=0, padx=(0, 8), pady=0, sticky="e")
+            status_chip.grid(row=0, column=0, padx=(0, 10))
 
             view_btn = ctk.CTkButton(
                 actions_frame,
-                text="VIEW",
-                width=70,
+                text="View",
+                width=60,
                 height=26,
-                fg_color="#0d74d1",
-                hover_color="#0b63b3",
+                font=("Segoe UI", 11),
+                fg_color="transparent",
+                border_width=1,
+                border_color="#0d74d1",
+                text_color="#0d74d1",
+                hover_color=("#d0e1f5", "#1a2c42"),
                 command=lambda r=rec: self._view_details(r),
             )
-            view_btn.grid(row=0, column=1, padx=(0, 0), pady=0, sticky="e")
+            view_btn.grid(row=0, column=1)
 
     def _view_details(self, record):
         rid, patient, doctor, schedule, amount_paid, is_paid, barcode, notes = record
 
         win = ctk.CTkToplevel(self)
-        win.title(f"Appointment #{rid}")
-        win.geometry("640x480")
+        win.title("")
+        win.geometry("550x650")
 
         win.transient(self)
         win.grab_set()
@@ -223,61 +232,120 @@ class CashierRecordsPage(ctk.CTkFrame):
         parent_y = self.winfo_rooty()
         parent_w = self.winfo_width()
         parent_h = self.winfo_height()
-        win_w = 640
-        win_h = 480
+        win.update_idletasks()
+        win_w = 550
+        win_h = 650
         x = parent_x + (parent_w - win_w) // 2
         y = parent_y + (parent_h - win_h) // 2
         win.geometry(f"{win_w}x{win_h}+{x}+{y}")
 
-        win.grid_columnconfigure(1, weight=1)
+        # Header
+        ctk.CTkLabel(
+            win, 
+            text="Details", 
+            font=("Segoe UI", 22, "bold")
+        ).pack(anchor="w", padx=30, pady=(25, 5))
 
-        ctk.CTkLabel(win, text="Patient:").grid(row=0, column=0, padx=20, pady=(20, 5), sticky="w")
-        ctk.CTkLabel(win, text=patient).grid(row=0, column=1, padx=20, pady=(20, 5), sticky="w")
+        ctk.CTkLabel(
+            win,
+            text=f"Appointment #{rid}",
+            font=("Segoe UI", 14),
+            text_color="gray70"
+        ).pack(anchor="w", padx=30, pady=(0, 15))
 
-        ctk.CTkLabel(win, text="Doctor:").grid(row=1, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=doctor).grid(row=1, column=1, padx=20, pady=5, sticky="w")
+        container = ctk.CTkScrollableFrame(win, corner_radius=0, fg_color="transparent")
+        container.pack(fill="both", expand=True, padx=0, pady=(0, 60))
+        container.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(win, text="Schedule:").grid(row=2, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=self._format_schedule(schedule)).grid(
-            row=2,
-            column=1,
-            padx=20,
-            pady=5,
-            sticky="w",
-        )
+        def _add_row(label_text, value_text, r_idx, is_multi=False):
+            frame = ctk.CTkFrame(
+                container, 
+                corner_radius=6, 
+                fg_color="transparent", 
+                border_width=1, 
+                border_color="#3d3d3d"
+            )
+            frame.grid(row=r_idx, column=0, sticky="ew", padx=30, pady=6)
+            frame.grid_columnconfigure(1, weight=1)
+            
+            lbl = ctk.CTkLabel(
+                frame, 
+                text=label_text, 
+                width=100, 
+                anchor="w", 
+                font=("Segoe UI", 12, "bold"), 
+                text_color="gray70"
+            )
+            lbl.grid(row=0, column=0, padx=(15, 5), pady=12, sticky="nw" if is_multi else "w")
+            
+            val = ctk.CTkLabel(
+                frame, 
+                text=value_text, 
+                font=("Segoe UI", 12), 
+                justify="left", 
+                anchor="w",
+                wraplength=340 if is_multi else 0
+            )
+            val.grid(row=0, column=1, padx=(5, 15), pady=12, sticky="w")
+            return frame
+
+        _add_row("Patient:", patient, 0)
+        _add_row("Doctor:", doctor, 1)
+        _add_row("Schedule:", self._format_schedule(schedule), 2)
 
         total_value = self._extract_total_from_notes(notes)
         total_text = f"₱{total_value:,.2f}" if total_value is not None else "-"
-        ctk.CTkLabel(win, text="Total:").grid(row=3, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=total_text).grid(row=3, column=1, padx=20, pady=5, sticky="w")
+        _add_row("Total:", total_text, 3)
 
         amt_text = f"₱{amount_paid:,.2f}" if amount_paid else "-"
-        ctk.CTkLabel(win, text="Amount paid:").grid(row=4, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=amt_text).grid(row=4, column=1, padx=20, pady=5, sticky="w")
+        _add_row("Amount paid:", amt_text, 4)
 
         paid_text = "Yes" if is_paid else "No"
-        ctk.CTkLabel(win, text="Paid:").grid(row=5, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=paid_text).grid(row=5, column=1, padx=20, pady=5, sticky="w")
+        _add_row("Paid:", paid_text, 5)
 
-        ctk.CTkLabel(win, text="Barcode:").grid(row=6, column=0, padx=20, pady=5, sticky="w")
-        barcode_row = ctk.CTkFrame(win, fg_color="transparent")
-        barcode_row.grid(row=6, column=1, padx=20, pady=5, sticky="ew")
-        barcode_row.grid_columnconfigure(0, weight=1)
+        # Barcode Row (Custom)
+        bc_frame = ctk.CTkFrame(
+            container, 
+            corner_radius=6, 
+            fg_color="transparent", 
+            border_width=1, 
+            border_color="#3d3d3d"
+        )
+        bc_frame.grid(row=6, column=0, sticky="ew", padx=30, pady=6)
+        bc_frame.grid_columnconfigure(1, weight=1)
+        
+        ctk.CTkLabel(
+            bc_frame, 
+            text="Barcode:", 
+            width=100, 
+            anchor="w", 
+            font=("Segoe UI", 12, "bold"), 
+            text_color="gray70"
+        ).grid(row=0, column=0, padx=(15, 5), pady=12, sticky="w")
+        
+        bc_val = barcode or "(none)"
+        ctk.CTkLabel(
+            bc_frame, 
+            text=bc_val, 
+            font=("Segoe UI", 12, "bold"),
+            text_color="#1c9b3b"
+        ).grid(row=0, column=1, padx=5, sticky="w")
 
-        barcode_text = barcode or "(none)"
-        barcode_entry = ctk.CTkEntry(barcode_row)
-        barcode_entry.insert(0, barcode_text)
-        barcode_entry.configure(state="readonly")
-        barcode_entry.grid(row=0, column=0, padx=(0, 6), sticky="ew")
+        def _copy():
+             win.clipboard_clear()
+             win.clipboard_append(bc_val)
+        
+        ctk.CTkButton(
+            bc_frame, 
+            text="Copy", 
+            width=50, 
+            height=24,
+            fg_color="#333",
+            hover_color="#444", 
+            command=_copy
+        ).grid(row=0, column=2, padx=15, pady=8)
 
-        def _copy_barcode():
-            value = barcode or ""
-            win.clipboard_clear()
-            win.clipboard_append(value)
-
-        copy_btn = ctk.CTkButton(barcode_row, text="Copy", width=60, command=_copy_barcode)
-        copy_btn.grid(row=0, column=1, sticky="e")
-
+        # Additional parsed info
         raw = notes or ""
         parts = [p.strip() for p in raw.split("|") if p.strip()]
         values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
@@ -299,22 +367,13 @@ class CashierRecordsPage(ctk.CTkFrame):
                 else:
                     values["Notes"] = p
 
-        ctk.CTkLabel(win, text="Contact:").grid(row=7, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=values["Contact"] or "-").grid(row=7, column=1, padx=20, pady=5, sticky="w")
+        _add_row("Contact:", values["Contact"] or "-", 7)
+        _add_row("Address:", values["Address"] or "-", 8)
+        _add_row("About:", values["About"] or "-", 9)
+        _add_row("Notes:", values["Notes"] or "", 10, is_multi=True)
 
-        ctk.CTkLabel(win, text="Address:").grid(row=8, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=values["Address"] or "-").grid(row=8, column=1, padx=20, pady=5, sticky="w")
-
-        ctk.CTkLabel(win, text="About:").grid(row=9, column=0, padx=20, pady=5, sticky="w")
-        ctk.CTkLabel(win, text=values["About"] or "-").grid(row=9, column=1, padx=20, pady=5, sticky="w")
-
-        ctk.CTkLabel(win, text="Notes:").grid(row=10, column=0, padx=20, pady=5, sticky="nw")
-        notes_text = values["Notes"] or ""
-        notes_label = ctk.CTkLabel(win, text=notes_text, justify="left")
-        notes_label.grid(row=10, column=1, padx=20, pady=5, sticky="w")
-
-        close_btn = ctk.CTkButton(win, text="Close", width=80, command=win.destroy)
-        close_btn.grid(row=11, column=0, columnspan=2, pady=(20, 20))
+        close_btn = ctk.CTkButton(win, text="Close", command=win.destroy, width=120)
+        close_btn.place(relx=0.5, rely=0.94, anchor="center")
 
     def _extract_total_from_notes(self, notes: str | None) -> float | None:
         if not notes:
