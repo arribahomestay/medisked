@@ -44,7 +44,8 @@ class LoginApp(ctk.CTk):
 
         # Set appearance - Dark & Minimal
         ctk.set_appearance_mode("dark")
-        self.configure(fg_color="#0f172a")  # Deep dark slate background
+        self.bg_color = "#0f172a"
+        self.configure(fg_color=self.bg_color)  # Deep dark slate background
 
         # Auth state
         self.authenticated = False
@@ -54,6 +55,164 @@ class LoginApp(ctk.CTk):
         # Main Layout - Centered Column
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
+
+        # Check for recent logins
+        recent_users = self._fetch_recent_users()
+        if recent_users:
+            # Expand window slightly for the cards view if needed, 
+            # but 400x520 might be tight for 3 cards horizontally. 
+            # Steam does it horizontally. Let's adjust geometry for this view.
+            self.geometry(f"600x450+{x-100}+{y+35}")
+            self._build_recent_logins_view(recent_users)
+        else:
+            self._build_login_form()
+
+    def _fetch_recent_users(self):
+        """Fetch up to 3 recent unique logins with their avatars."""
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            # Join with users to get profile image if available
+            cur.execute("""
+                SELECT r.username, u.profile_image_path, u.full_name
+                FROM recent_logins r
+                LEFT JOIN users u ON r.username = u.username
+                ORDER BY r.last_login DESC
+                LIMIT 3
+            """)
+            rows = cur.fetchall() # [(username, path, full_name), ...]
+            conn.close()
+            return rows
+        except Exception:
+            return []
+
+    def _clear_window(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+    def _build_recent_logins_view(self, recent_users):
+        self._clear_window()
+        self.title("MEDISKED - Saved Login") 
+        
+        container = ctk.CTkFrame(self, fg_color="transparent")
+        container.pack(expand=True, fill="both", padx=20, pady=20)
+        
+        # Title
+        ctk.CTkLabel(
+            container, 
+            text="Login as..", 
+            font=("Segoe UI", 24, "bold"), 
+            text_color="white"
+        ).pack(pady=(20, 40))
+
+        # Cards container
+        cards_frame = ctk.CTkFrame(container, fg_color="transparent")
+        cards_frame.pack()
+
+        from PIL import Image
+        
+        def create_user_card(parent, username, img_path, display_name):
+            card = ctk.CTkButton(
+                parent,
+                text="",
+                width=110,
+                height=140,
+                fg_color="#1e293b",
+                hover_color="#334155",
+                corner_radius=10,
+                border_width=0,
+                command=lambda: self._switch_to_login(username)
+            )
+            
+            # Helper: We can't put widgets inside a rounded CTkButton easily unless we use a Frame and bind click.
+            # So let's use a Frame that acts as a button.
+            card_frame = ctk.CTkFrame(parent, width=110, height=140, fg_color="#1e293b", corner_radius=10)
+            
+            # Hover effects
+            def on_enter(e): card_frame.configure(fg_color="#334155")
+            def on_leave(e): card_frame.configure(fg_color="#1e293b")
+            card_frame.bind("<Enter>", on_enter)
+            card_frame.bind("<Leave>", on_leave)
+            
+            # Click event
+            def on_click(e): self._switch_to_login(username)
+            card_frame.bind("<Button-1>", on_click)
+
+            # Avatar
+            avatar_img = None
+            if img_path and os.path.exists(img_path):
+                try:
+                    pil_img = Image.open(img_path)
+                    avatar_img = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(70, 70))
+                except: pass
+            
+            lbl_img = ctk.CTkLabel(
+                card_frame, 
+                text="👤" if not avatar_img else "", 
+                image=avatar_img,
+                font=("Segoe UI", 40) if not avatar_img else None,
+                width=70, height=70
+            )
+            lbl_img.place(relx=0.5, rely=0.4, anchor="center")
+            
+            # Bind events to children too
+            lbl_img.bind("<Button-1>", on_click)
+            lbl_img.bind("<Enter>", on_enter)
+            lbl_img.bind("<Leave>", on_leave)
+
+            # Name
+            lbl_name = ctk.CTkLabel(card_frame, text=display_name, font=("Segoe UI", 12, "bold"), text_color="white")
+            lbl_name.place(relx=0.5, rely=0.8, anchor="center")
+            lbl_name.bind("<Button-1>", on_click)
+            lbl_name.bind("<Enter>", on_enter)
+            lbl_name.bind("<Leave>", on_leave)
+
+            return card_frame
+
+        for i, (uname, path, full_name) in enumerate(recent_users):
+            display_text = full_name if full_name else uname
+            c = create_user_card(cards_frame, uname, path, display_text)
+            c.grid(row=0, column=i, padx=10, pady=10)
+
+        # Plus button
+        plus_frame = ctk.CTkFrame(cards_frame, width=110, height=140, fg_color="#1e293b", corner_radius=10)
+        def on_enter_p(e): plus_frame.configure(fg_color="#334155")
+        def on_leave_p(e): plus_frame.configure(fg_color="#1e293b")
+        def on_click_p(e): self._switch_to_login(None)
+        
+        plus_frame.bind("<Enter>", on_enter_p)
+        plus_frame.bind("<Leave>", on_leave_p)
+        plus_frame.bind("<Button-1>", on_click_p)
+
+        lbl_plus = ctk.CTkLabel(plus_frame, text="+", font=("Segoe UI", 40), text_color="#94a3b8")
+        lbl_plus.place(relx=0.5, rely=0.5, anchor="center")
+        lbl_plus.bind("<Button-1>", on_click_p)
+        
+        plus_frame.grid(row=0, column=len(recent_users), padx=10, pady=10)
+
+        # Footer
+        footer_label = ctk.CTkLabel(
+            self,
+            text="2025 MEDISKED",
+            font=("Segoe UI", 10),
+            text_color="#475569"
+        )
+        footer_label.place(relx=0.5, rely=0.95, anchor="center")
+
+    def _switch_to_login(self, username_prefill):
+        # Reset geometry to original portrait size
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        width, height = 400, 520
+        x = (sw - width) // 2
+        y = (sh - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        
+        self._build_login_form(username_prefill)
+
+    def _build_login_form(self, username_prefill=None):
+        self._clear_window()
+        self.title("MEDISKED - Login")
 
         # Container Frame (Transparent, just for layout)
         content_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -102,6 +261,8 @@ class LoginApp(ctk.CTk):
             placeholder_text_color="#64748b"
         )
         self.username_entry.grid(row=3, column=0, pady=(0, 15), sticky="ew")
+        if username_prefill:
+            self.username_entry.insert(0, username_prefill)
 
         # Password Frame (for the eye button)
         password_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
@@ -136,6 +297,10 @@ class LoginApp(ctk.CTk):
             command=self.toggle_password_visibility,
         )
         self.eye_button.place(relx=1.0, rely=0.5, anchor="e", x=-10)
+        
+        # If prefilled, focus password
+        if username_prefill:
+            self.password_entry.focus()
 
         # 3. Actions (Remember / Forgot)
         actions_row = ctk.CTkFrame(content_frame, fg_color="transparent")
@@ -194,6 +359,22 @@ class LoginApp(ctk.CTk):
 
         # Key binding
         self.bind("<Return>", lambda event: self.handle_login())
+
+    def _record_recent_login(self, username):
+        try:
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            # Upsert
+            cur.execute("""
+                INSERT INTO recent_logins (username, last_login) VALUES (?, ?)
+                ON CONFLICT(username) DO UPDATE SET last_login = excluded.last_login
+            """, (username, ts))
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
     def open_forgot_password(self):
         """Open a window to request a password reset from the admin.
@@ -398,6 +579,9 @@ class LoginApp(ctk.CTk):
                     self.after(1600, lambda: self._finalize_login(username, role))
                 else:
                     self._finalize_login(username, role)
+            
+            # Record this successful login for "Who's playing?" screen
+            self._record_recent_login(username)
 
             self._show_login_loading(_complete_login)
         else:

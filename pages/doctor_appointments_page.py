@@ -7,80 +7,123 @@ from database import DB_NAME
 
 class DoctorAppointmentsPage(ctk.CTkFrame):
     def __init__(self, master, doctor_name: str):
-        super().__init__(master, corner_radius=0)
+        super().__init__(master, corner_radius=0, fg_color="transparent")
 
         self.doctor_name = doctor_name
-
-        # Filter mode: 'upcoming', 'today', 'all'
         self.filter_mode = "upcoming"
 
+        self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(
-            self,
-            text="Appointments",
-            font=("Segoe UI", 24, "bold"),
-        )
-        title.grid(row=0, column=0, padx=30, pady=(10, 4), sticky="w")
+        # 1. Header & Controls Card
+        controls_frame = ctk.CTkFrame(self, fg_color="#1e293b", corner_radius=16)
+        controls_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        controls_frame.grid_columnconfigure(0, weight=1)
+        controls_frame.grid_columnconfigure(1, weight=0)
 
-        container = ctk.CTkFrame(self, corner_radius=10)
-        container.grid(row=1, column=0, padx=30, pady=(0, 24), sticky="nsew")
-        container.grid_rowconfigure(2, weight=1)
-        container.grid_columnconfigure(0, weight=1)
+        # Title Group
+        title_sub_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        title_sub_frame.grid(row=0, column=0, padx=24, pady=24, sticky="ew")
+        
+        ctk.CTkLabel(
+            title_sub_frame,
+            text="Appointments", 
+            font=("Inter", 20, "bold"),
+            text_color="white"
+        ).pack(anchor="w")
 
-        summary = ctk.CTkLabel(
-            container,
-            text=f"Upcoming 2-hour appointments for {self.doctor_name}",
-            font=("Segoe UI", 15, "bold"),
-        )
-        summary.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+        ctk.CTkLabel(
+            title_sub_frame,
+            text=f"Upcoming schedule for Dr. {self.doctor_name or 'Unknown'}",
+            font=("Inter", 13),
+            text_color="#94a3b8"
+        ).pack(anchor="w", pady=(2, 0))
 
-        # Filters + actions row
-        controls = ctk.CTkFrame(container, fg_color="transparent")
-        controls.grid(row=1, column=0, padx=16, pady=(0, 6), sticky="ew")
-        controls.grid_columnconfigure(0, weight=1)
-        controls.grid_columnconfigure(1, weight=0)
-
-        filters_frame = ctk.CTkFrame(controls, fg_color="transparent")
-        filters_frame.grid(row=0, column=0, sticky="w")
+        # Actions (Buttons)
+        actions_frame = ctk.CTkFrame(controls_frame, fg_color="transparent")
+        actions_frame.grid(row=0, column=1, padx=24, pady=24, sticky="e")
 
         self.upcoming_btn = ctk.CTkButton(
-            filters_frame,
+            actions_frame,
             text="Upcoming",
             width=90,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 13, "bold"),
             command=lambda: self._set_filter("upcoming"),
         )
-        self.upcoming_btn.grid(row=0, column=0, padx=(0, 6))
+        self.upcoming_btn.pack(side="left", padx=(0, 10))
 
         self.today_btn = ctk.CTkButton(
-            filters_frame,
+            actions_frame,
             text="Today",
             width=80,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 13, "bold"),
             command=lambda: self._set_filter("today"),
         )
-        self.today_btn.grid(row=0, column=1, padx=6)
+        self.today_btn.pack(side="left", padx=(0, 10))
 
         self.all_btn = ctk.CTkButton(
-            filters_frame,
+            actions_frame,
             text="All",
             width=70,
+            height=36,
+            corner_radius=8,
+            font=("Inter", 13, "bold"),
             command=lambda: self._set_filter("all"),
         )
-        self.all_btn.grid(row=0, column=2, padx=6)
+        self.all_btn.pack(side="left", padx=(0, 10))
 
-        refresh_btn = ctk.CTkButton(
-            controls,
+        self.refresh_btn = ctk.CTkButton(
+            actions_frame,
             text="Refresh",
-            width=90,
-            fg_color="#16a34a",
-            hover_color="#15803d",
+            width=80,
+            height=36,
+            corner_radius=8,
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            font=("Inter", 13, "bold"),
             command=self._load_appointments,
         )
-        refresh_btn.grid(row=0, column=1, padx=(6, 0), sticky="e")
+        self.refresh_btn.pack(side="left")
 
-        self.list_frame = ctk.CTkScrollableFrame(container, corner_radius=10)
-        self.list_frame.grid(row=2, column=0, padx=16, pady=(4, 12), sticky="nsew")
+        # 2. Results List Container 
+        list_container = ctk.CTkFrame(self, fg_color="#1e293b", corner_radius=16)
+        list_container.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="nsew")
+        list_container.grid_rowconfigure(1, weight=1)
+        list_container.grid_columnconfigure(0, weight=1)
+
+        # Header Row
+        header_row = ctk.CTkFrame(list_container, fg_color="transparent", height=40)
+        header_row.grid(row=0, column=0, sticky="ew", padx=(5, 20), pady=(10, 0))
+        
+        # Grid Cols
+        header_row.grid_columnconfigure(0, weight=1) # Date
+        header_row.grid_columnconfigure(1, weight=1) # Time
+        header_row.grid_columnconfigure(2, weight=2) # Patient
+        header_row.grid_columnconfigure(3, weight=1) # Status
+        header_row.grid_columnconfigure(4, weight=0, minsize=100) # Actions
+
+        def _hlabel(col, text, align="w", px=10):
+            ctk.CTkLabel(
+                header_row, 
+                text=text.upper(), 
+                font=("Inter", 11, "bold"), 
+                text_color="#64748b",
+                anchor=align
+            ).grid(row=0, column=col, sticky="ew", padx=px)
+
+        _hlabel(0, "DATE")
+        _hlabel(1, "TIME")
+        _hlabel(2, "PATIENT")
+        _hlabel(3, "STATUS")
+        _hlabel(4, "ACTIONS", "e")
+
+        self.list_frame = ctk.CTkScrollableFrame(list_container, corner_radius=0, fg_color="transparent")
+        self.list_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=(10, 10))
         self.list_frame.grid_columnconfigure(0, weight=1)
 
         self._update_filter_buttons()
@@ -96,50 +139,31 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
         conn = self._connect()
         cur = conn.cursor()
 
-        # Build query based on current filter mode
-        if self.filter_mode == "today":
-            cur.execute(
-                """
-                SELECT patient_name, schedule, notes, COALESCE(is_rescheduled, 0), COALESCE(is_paid, 0)
-                FROM appointments
-                WHERE doctor_name = ?
-                  AND DATE(schedule) = DATE('now')
-                ORDER BY DATETIME(schedule)
-                """,
-                (self.doctor_name,),
-            )
-        elif self.filter_mode == "upcoming":
-            cur.execute(
-                """
-                SELECT patient_name, schedule, notes, COALESCE(is_rescheduled, 0), COALESCE(is_paid, 0)
-                FROM appointments
-                WHERE doctor_name = ?
-                  AND DATETIME(schedule) >= DATETIME('now')
-                ORDER BY DATETIME(schedule)
-                """,
-                (self.doctor_name,),
-            )
-        else:  # all
-            cur.execute(
-                """
-                SELECT patient_name, schedule, notes, COALESCE(is_rescheduled, 0), COALESCE(is_paid, 0)
-                FROM appointments
-                WHERE doctor_name = ?
-                ORDER BY DATETIME(schedule)
-                """,
-                (self.doctor_name,),
-            )
+        base_query = """
+            SELECT patient_name, schedule, notes, COALESCE(is_rescheduled, 0), COALESCE(is_paid, 0)
+            FROM appointments
+            WHERE doctor_name = ?
+        """
+        params = [self.doctor_name]
 
+        if self.filter_mode == "today":
+            base_query += " AND DATE(schedule) = DATE('now')"
+        elif self.filter_mode == "upcoming":
+            base_query += " AND DATETIME(schedule) >= DATETIME('now')"
+        
+        base_query += " ORDER BY DATETIME(schedule)"
+
+        cur.execute(base_query, tuple(params))
         rows = cur.fetchall()
         conn.close()
 
         if not rows:
-            lbl = ctk.CTkLabel(
+            ctk.CTkLabel(
                 self.list_frame,
-                text="No appointments scheduled.",
-                font=("Segoe UI", 12),
-            )
-            lbl.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+                text="No appointments found.",
+                font=("Inter", 14),
+                text_color="#64748b"
+            ).pack(pady=40)
             return
 
         for idx, (patient, schedule_str, notes, is_rescheduled, is_paid) in enumerate(rows):
@@ -149,43 +173,70 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
                 pretty_time = dt.strftime("%I:%M %p")
             except Exception:
                 pretty_date = schedule_str.split()[0]
-                pretty_time = schedule_str.split()[1] if " " in schedule_str else ""
-            row = ctk.CTkFrame(self.list_frame, corner_radius=6, border_width=1, border_color="#3d3d3d", fg_color="transparent")
-            row.grid(row=idx, column=0, sticky="ew", padx=4, pady=4)
-            row.grid_columnconfigure(0, weight=1)
-            row.grid_columnconfigure(1, weight=0)
+                pretty_time = ""
 
-            # Main info block
             status_suffix = " (Rescheduled)" if is_rescheduled else ""
             paid_status = "PAID" if is_paid else "UNPAID"
-            paid_color = "#16a34a" if is_paid else "#dc2626"
-            
-            # Left side content
-            left_content = ctk.CTkFrame(row, fg_color="transparent")
-            left_content.grid(row=0, column=0, sticky="nsew", padx=12, pady=8)
-            
-            # Date/Time
-            ctk.CTkLabel(left_content, text=f"{pretty_date} • {pretty_time}{status_suffix}", font=("Segoe UI", 13, "bold"), text_color="white").pack(anchor="w")
-            # Patient
-            ctk.CTkLabel(left_content, text=f"Patient: {patient}", font=("Segoe UI", 12), text_color="gray80").pack(anchor="w")
-            # Status
-            ctk.CTkLabel(left_content, text=f"Status: {paid_status}", font=("Segoe UI", 11, "bold"), text_color=paid_color).pack(anchor="w")
+            paid_color = "#10b981" if is_paid else "#ef4444"
 
-            # View details button
-            details_btn = ctk.CTkButton(
-                row,
-                text="View Details",
-                width=100,
-                height=32,
-                font=("Segoe UI", 12),
+            # Row Card -> Slate 700 (#334155) with outline
+            row = ctk.CTkFrame(
+                self.list_frame, 
+                corner_radius=8, 
+                fg_color="#334155", 
+                border_width=1, 
+                border_color="#475569",
+                height=50
+            ) 
+            row.pack(fill="x", pady=5, padx=5)
+            
+            row.grid_columnconfigure(0, weight=1)
+            row.grid_columnconfigure(1, weight=1)
+            row.grid_columnconfigure(2, weight=2)
+            row.grid_columnconfigure(3, weight=1)
+            row.grid_columnconfigure(4, weight=0, minsize=100)
+
+            # Date
+            ctk.CTkLabel(row, text=pretty_date, font=("Inter", 13, "bold"), text_color="white", anchor="w").grid(row=0, column=0, padx=15, pady=12, sticky="ew")
+            # Time
+            t_txt = f"{pretty_time}{status_suffix}"
+            ctk.CTkLabel(row, text=t_txt, font=("Inter", 13), text_color="#cbd5e1", anchor="w").grid(row=0, column=1, padx=10, sticky="ew")
+            # Patient
+            ctk.CTkLabel(row, text=patient, font=("Inter", 13), text_color="white", anchor="w").grid(row=0, column=2, padx=10, sticky="ew")
+            
+            # Status Badge Container
+            status_container = ctk.CTkFrame(row, fg_color="transparent")
+            status_container.grid(row=0, column=3, padx=10, sticky="w")
+            
+            # Rescheduled Chip?
+            if is_rescheduled:
+                res_chip = ctk.CTkFrame(status_container, fg_color="#f97316", corner_radius=6)
+                res_chip.pack(side="left", padx=(0, 6))
+                ctk.CTkLabel(res_chip, text="RESCHED", font=("Inter", 10, "bold"), text_color="white").pack(padx=6, pady=2)
+
+            # Paid Chip
+            paid_chip = ctk.CTkFrame(status_container, fg_color=paid_color, corner_radius=6)
+            paid_chip.pack(side="left")
+            ctk.CTkLabel(paid_chip, text=paid_status, font=("Inter", 10, "bold"), text_color="white").pack(padx=8, pady=2)
+
+            # Actions
+            actions_panel = ctk.CTkFrame(row, fg_color="transparent")
+            actions_panel.grid(row=0, column=4, padx=10, sticky="e")
+            
+            btn = ctk.CTkButton(
+                actions_panel,
+                text="Details",
+                width=60,
+                height=28,
+                font=("Inter", 12),
                 fg_color="transparent",
                 border_width=1,
                 border_color="#3b82f6",
                 text_color="#3b82f6",
-                hover_color="#1e293b",
-                command=lambda p=patient, s=schedule_str, n=notes, paid=is_paid: self._open_details(p, s, n, paid),
+                hover_color=("#1e293b", "#0f172a"),
+                command=lambda p=patient, s=schedule_str, n=notes, pd=is_paid: self._open_details(p, s, n, pd)
             )
-            details_btn.grid(row=0, column=1, padx=12, pady=8, sticky="e")
+            btn.pack(side="right")
 
     def _set_filter(self, mode: str):
         if mode not in {"upcoming", "today", "all"}:
@@ -195,92 +246,73 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
         self._load_appointments()
 
     def _update_filter_buttons(self):
-        # Active filter is filled, inactive is outlined/transparent or gray
-        active_fg = "#0d74d1"
-        active_hover = "#0b63b3"
-        inactive_fg = "transparent"
-        inactive_hover = "#2b2b2b"
+        active_fg = "#3b82f6"
+        active_hover = "#2563eb"
+        inactive_fg = "transparent" # Changed to transparent for tab-like feel on the slate BG? Or keep filled?
+        # If we keep filled:
+        inactive_fg = "#0f172a" # Darker than content (#1e293b) to look like 'slot' or lighter?
+        # Admin uses #334155 (Slate 700) for unselected.
+        inactive_fg = "#334155" 
+        inactive_hover = "#475569"
 
         def style(btn, active: bool):
             if active:
-                btn.configure(fg_color=active_fg, hover_color=active_hover, border_width=0, text_color="white")
+                btn.configure(fg_color=active_fg, hover_color=active_hover, text_color="white")
             else:
-                btn.configure(fg_color=inactive_fg, hover_color=inactive_hover, border_width=1, border_color="#3d3d3d", text_color="gray80")
+                btn.configure(fg_color=inactive_fg, hover_color=inactive_hover, text_color="#cbd5e1")
 
         style(self.upcoming_btn, self.filter_mode == "upcoming")
         style(self.today_btn, self.filter_mode == "today")
         style(self.all_btn, self.filter_mode == "all")
 
     def _open_details(self, patient: str, schedule_str: str, notes: str | None, is_paid: int):
-        """Show a compact popup with appointment details."""
         master = self.winfo_toplevel()
         win = ctk.CTkToplevel(master)
-        win.title("")
-        # Slightly larger so all information is visible
-        win.geometry("500x600")
+        win.title("Appointment Details")
+        win.geometry("500x550")
         win.resizable(False, False)
         win.transient(master)
         win.grab_set()
+        win.configure(fg_color="#0f172a")
 
         win.grid_rowconfigure(2, weight=1)
         win.grid_columnconfigure(0, weight=1)
 
         try:
             dt = datetime.strptime(schedule_str, "%Y-%m-%d %H:%M")
-            pretty_date = dt.strftime("%Y-%m-%d")
+            pretty_date = dt.strftime("%B %d, %Y")
             pretty_time = dt.strftime("%I:%M %p")
         except Exception:
-            parts = schedule_str.split()
-            pretty_date = parts[0] if parts else "-"
-            pretty_time = parts[1] if len(parts) > 1 else "-"
+            pretty_date = schedule_str
+            pretty_time = ""
 
-        ctk.CTkLabel(win, text="Appointment Details", font=("Segoe UI", 20, "bold")).grid(row=0, column=0, padx=25, pady=(25, 5), sticky="w")
-        ctk.CTkLabel(win, text=f"Scheduled for {pretty_date}", font=("Segoe UI", 13), text_color="gray70").grid(row=1, column=0, padx=25, pady=(0, 20), sticky="w")
+        ctk.CTkLabel(win, text="Appointment Details", font=("Inter", 20, "bold"), text_color="white").grid(row=0, column=0, padx=25, pady=(25, 5), sticky="w")
+        ctk.CTkLabel(win, text=f"Scheduled for {pretty_date}", font=("Inter", 13), text_color="#94a3b8").grid(row=1, column=0, padx=25, pady=(0, 20), sticky="w")
 
-        body = ctk.CTkScrollableFrame(win, corner_radius=0, fg_color="transparent")
-        body.grid(row=2, column=0, padx=0, pady=(0, 20), sticky="nsew")
+        body = ctk.CTkScrollableFrame(win, fg_color="#1e293b", corner_radius=16)
+        body.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
         body.grid_columnconfigure(0, weight=1)
 
         raw = notes or ""
-        parts = [p.strip() for p in raw.split("|") if p.strip()]
-        values = {"Contact": "", "Address": "", "About": "", "Notes": ""}
-        for p in parts:
-            if ":" in p:
-                key, val = p.split(":", 1)
-                key = key.strip()
-                val = val.strip()
-                if key in values:
-                    values[key] = val
-                else:
-                    if values["Notes"]:
-                        values["Notes"] += " " + p
-                    else:
-                        values["Notes"] = p
-            else:
-                if values["Notes"]:
-                    values["Notes"] += " " + p
-                else:
-                    values["Notes"] = p
-
-        rows = [
-            ("Doctor", self.doctor_name or "-"),
+        
+        info_lines = [
             ("Patient", patient or "-"),
             ("Date", pretty_date),
             ("Time", pretty_time),
             ("Status", "PAID" if is_paid else "UNPAID"),
-            ("Contact", values["Contact"] or "-"),
-            ("Address", values["Address"] or "-"),
-            ("About", values["About"] or "-"),
-            ("Notes", values["Notes"] or "-"),
         ]
+        
+        for label, val in info_lines:
+            row_f = ctk.CTkFrame(body, corner_radius=8, fg_color="#334155")
+            row_f.pack(fill="x", padx=15, pady=6)
+            ctk.CTkLabel(row_f, text=label, font=("Inter", 12, "bold"), text_color="#94a3b8", width=80, anchor="w").pack(side="left", padx=15, pady=12)
+            ctk.CTkLabel(row_f, text=val, font=("Inter", 13), text_color="white").pack(side="left", padx=10)
 
-        for idx, (label, value) in enumerate(rows):
-            row_f = ctk.CTkFrame(body, corner_radius=6, border_width=1, border_color="#3d3d3d", fg_color="transparent")
-            row_f.grid(row=idx, column=0, sticky="ew", padx=25, pady=5)
-            row_f.grid_columnconfigure(1, weight=1)
-
-            ctk.CTkLabel(row_f, text=label, font=("Segoe UI", 12, "bold"), text_color="gray70", width=80, anchor="w").grid(row=0, column=0, padx=15, pady=10)
-            ctk.CTkLabel(row_f, text=value, font=("Segoe UI", 13), anchor="w", justify="left", wraplength=280).grid(row=0, column=1, padx=10, pady=10, sticky="w")
+        if raw:
+            notes_f = ctk.CTkFrame(body, corner_radius=8, fg_color="#334155")
+            notes_f.pack(fill="x", padx=15, pady=6)
+            ctk.CTkLabel(notes_f, text="DETAILS", font=("Inter", 12, "bold"), text_color="#94a3b8", width=80, anchor="w").pack(anchor="nw",padx=15, pady=(12,0))
+            ctk.CTkLabel(notes_f, text=raw.replace("|", "\n"), font=("Inter", 13), text_color="white", justify="left", wraplength=400).pack(anchor="w", padx=15, pady=(5, 12))
 
         close_btn = ctk.CTkButton(
             win, 
@@ -288,22 +320,17 @@ class DoctorAppointmentsPage(ctk.CTkFrame):
             width=100,
             fg_color="transparent", 
             border_width=1,
-            border_color="#4b5563",
-            text_color="#9ca3af",
-            hover_color="#374151", 
+            border_color="#64748b",
+            text_color="#cbd5e1",
+            hover_color="#334155", 
+            font=("Inter", 13),
             command=win.destroy
         )
         close_btn.grid(row=3, column=0, padx=25, pady=(0, 25), sticky="e")
 
-        # Center the popup relative to the main doctor window
         win.update_idletasks()
-        master.update_idletasks()
-        master_x = master.winfo_rootx()
-        master_y = master.winfo_rooty()
-        master_w = master.winfo_width()
-        master_h = master.winfo_height()
-        win_w = win.winfo_width()
-        win_h = win.winfo_height()
-        x = master_x + (master_w - win_w) // 2
-        y = master_y + (master_h - win_h) // 2
-        win.geometry(f"{win_w}x{win_h}+{x}+{y}")
+        try:
+            x = master.winfo_rootx() + (master.winfo_width() - win.winfo_width()) // 2
+            y = master.winfo_rooty() + (master.winfo_height() - win.winfo_height()) // 2
+            win.geometry(f"+{x}+{y}")
+        except: pass

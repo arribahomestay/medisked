@@ -1,118 +1,240 @@
 import sqlite3
-
 import customtkinter as ctk
 from tkinter import messagebox
-
 from database import DB_NAME
 
-
 class ProfileWindow(ctk.CTkToplevel):
-    def __init__(self, master, username: str, anchor_widget=None):
+    def __init__(self, master, username: str, anchor_widget=None, mode="settings"):
         super().__init__(master)
+        
+        self.mode = mode
+        self.username = username
+        self.master_ref = master
+        self.selected_image_path = None
+        
+        # Determine Title and Size based on mode
+        if self.mode == "security":
+            title_text = "Security Settings"
+            width, height = 400, 360 # Smaller for password only
+        else:
+            title_text = "Profile Settings"
+            width, height = 400, 500
 
-        self.title("Profile Settings")
-        width, height = 420, 340
+        self.title(title_text)
         self.geometry(f"{width}x{height}")
         self.resizable(False, False)
-
+        self.configure(fg_color="#0f172a") # Theme BG
         self.transient(master)
         self.update_idletasks()
 
         if anchor_widget is not None:
-            # Position the window just below and aligned to the right of the anchor widget
+            # Position just below/right of anchor
             ax = anchor_widget.winfo_rootx()
             ay = anchor_widget.winfo_rooty()
             aw = anchor_widget.winfo_width()
             ah = anchor_widget.winfo_height()
-
             x = int(ax + aw - width)
             y = int(ay + ah + 4)
         else:
+            # Center on master
             master_x = master.winfo_rootx()
             master_y = master.winfo_rooty()
             master_w = master.winfo_width()
             master_h = master.winfo_height()
             x = master_x + (master_w - width) // 2
             y = master_y + (master_h - height) // 2
+        
+        # Ensure within screen bounds
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+        x = max(0, min(x, screen_w - width))
+        y = max(0, min(y, screen_h - height))
 
         self.geometry(f"{width}x{height}+{x}+{y}")
-
-        # Lock window position so it cannot be moved by dragging
-        self._fixed_pos = (x, y)
-        self._lock_position = False
-
-        def _enforce_position(_event):
-            if self._lock_position:
-                return
-            cur_x, cur_y = self.winfo_x(), self.winfo_y()
-            if (cur_x, cur_y) != self._fixed_pos:
-                self._lock_position = True
-                self.geometry(f"{width}x{height}+{self._fixed_pos[0]}+{self._fixed_pos[1]}")
-                self._lock_position = False
-
-        self.bind("<Configure>", _enforce_position)
-
-        self.username = username
-        self.master_ref = master
+        
+        # DB Load
+        self.current_image_path = None
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT password, profile_image_path, full_name FROM users WHERE username = ?", (self.username,))
+        row = cur.fetchone()
+        conn.close()
+        
+        if row:
+            self.current_password = row[0]
+            self.current_image_path = row[1]
+            self.current_full_name = row[2] if row[2] else ""
+        else:
+            self.current_password = ""
+            self.current_image_path = None
+            self.current_full_name = ""
 
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(2, weight=1) # Main content area
 
-        title = ctk.CTkLabel(self, text="Profile Settings", font=("Segoe UI", 20, "bold"))
-        title.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        # Title Label
+        title = ctk.CTkLabel(self, text=title_text, font=("Inter", 20, "bold"), text_color="white")
+        title.grid(row=0, column=0, padx=24, pady=(24, 15), sticky="w")
 
-        # Username (editable)
-        user_label = ctk.CTkLabel(self, text="Username", font=("Segoe UI", 12))
-        user_label.grid(row=1, column=0, padx=20, pady=(10, 0), sticky="w")
+        # Main Content Container
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_frame.grid(row=1, column=0, sticky="nsew")
+        self.main_frame.grid_columnconfigure(0, weight=1)
 
-        self.username_entry = ctk.CTkEntry(self)
+        if self.mode == "security":
+             self._build_security_ui()
+        else:
+             self._build_settings_ui()
+        
+        # Bottom Buttons
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.grid(row=3, column=0, padx=24, pady=24, sticky="ew")
+        
+        ctk.CTkButton(
+            btn_frame, 
+            text="Cancel", 
+            fg_color="transparent", 
+            border_width=1, 
+            border_color="#64748b",
+            text_color="#cbd5e1",
+            hover_color="#334155",
+            width=80, 
+            command=self.destroy
+        ).pack(side="left")
+        
+        save_btn_txt = "Change Password" if self.mode == "security" else "Save Changes"
+        ctk.CTkButton(
+            btn_frame, 
+            text=save_btn_txt, 
+            width=120, 
+            fg_color="#3b82f6",
+            hover_color="#2563eb",
+            font=("Inter", 13, "bold"),
+            command=self._on_save
+        ).pack(side="right")
+
+    def _build_settings_ui(self):
+        # Avatar
+        self.avatar_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.avatar_frame.pack(fill="x", pady=(0, 15))
+        
+        self.avatar_size = 90
+        # Wrap avatar in a small frame to center it
+        av_wrap = ctk.CTkFrame(self.avatar_frame, fg_color="transparent")
+        av_wrap.pack()
+        
+        self.avatar_preview = ctk.CTkLabel(av_wrap, text="", width=self.avatar_size, height=self.avatar_size)
+        self.avatar_preview.pack(pady=(0, 8))
+        self._load_avatar_preview(self.current_image_path)
+        
+        ctk.CTkButton(
+            av_wrap, 
+            text="Upload New Photo", 
+            font=("Inter", 11),
+            height=26,
+            width=110,
+            fg_color="#334155", 
+            hover_color="#475569",
+            command=self._select_photo
+        ).pack()
+
+        # Fields frame
+        f = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        f.pack(fill="x", padx=24)
+        f.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(f, text="Display Name", font=("Inter", 13), text_color="#94a3b8").pack(anchor="w", pady=(5, 2))
+        self.fullname_entry = ctk.CTkEntry(f, fg_color="#1e293b", border_color="#334155", text_color="white", height=38)
+        self.fullname_entry.insert(0, self.current_full_name)
+        self.fullname_entry.pack(fill="x", pady=(0, 12))
+
+        ctk.CTkLabel(f, text="Username", font=("Inter", 13), text_color="#94a3b8").pack(anchor="w", pady=(5, 2))
+        self.username_entry = ctk.CTkEntry(f, fg_color="#1e293b", border_color="#334155", text_color="white", height=38)
         self.username_entry.insert(0, self.username)
-        self.username_entry.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="ew")
-        # Password (editable)
-        pwd_label = ctk.CTkLabel(self, text="Password", font=("Segoe UI", 12))
-        pwd_label.grid(row=3, column=0, padx=20, pady=(10, 0), sticky="w")
+        self.username_entry.pack(fill="x")
 
-        self.password_entry = ctk.CTkEntry(self, show="*")
-        self.password_entry.grid(row=4, column=0, padx=20, pady=(0, 10), sticky="ew")
+    def _build_security_ui(self):
+        f = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        f.pack(fill="x", padx=24, pady=10)
+        
+        def _field(label, var_name):
+            ctk.CTkLabel(f, text=label, font=("Inter", 13), text_color="#94a3b8").pack(anchor="w", pady=(5, 2))
+            ent = ctk.CTkEntry(f, show="*", fg_color="#1e293b", border_color="#334155", text_color="white", height=38)
+            ent.pack(fill="x", pady=(0, 12))
+            setattr(self, var_name, ent)
 
-        buttons_frame = ctk.CTkFrame(self, fg_color="transparent")
-        buttons_frame.grid(row=5, column=0, padx=20, pady=(10, 10), sticky="e")
+        _field("Current Password", "curr_pass_entry")
+        _field("New Password", "new_pass_entry")
+        _field("Confirm New Password", "confirm_pass_entry")
 
-        logout_button = ctk.CTkButton(
-            buttons_frame,
-            text="Logout",
-            width=90,
-            fg_color="#b91c1c",
-            hover_color="#991b1b",
-            command=self._logout,
-        )
-        logout_button.grid(row=0, column=0, padx=(0, 8))
+    def _on_save(self):
+        if self.mode == "security":
+            self._save_password()
+        else:
+            self._save_profile()
 
-        save_button = ctk.CTkButton(buttons_frame, text="Save", width=80, command=self.save_profile)
-        save_button.grid(row=0, column=1)
+    def _save_password(self):
+        curr = self.curr_pass_entry.get().strip()
+        new_p = self.new_pass_entry.get().strip()
+        conf_p = self.confirm_pass_entry.get().strip()
 
-        close_button = ctk.CTkButton(
-            buttons_frame,
-            text="Close",
-            width=80,
-            command=self.destroy,
-        )
-        close_button.grid(row=0, column=2, padx=(8, 0))
+        if not curr or not new_p or not conf_p:
+            messagebox.showwarning("Incomplete", "All fields are required.")
+            return
 
-    def save_profile(self):
+        if curr != self.current_password:
+            messagebox.showerror("Error", "Incorrect current password.")
+            return
+
+        if new_p != conf_p:
+            messagebox.showerror("Error", "New passwords do not match.")
+            return
+        
+        if len(new_p) < 4:
+            messagebox.showerror("Security", "Password must be at least 4 characters.")
+            return
+
+        # Upate DB
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("UPDATE users SET password = ? WHERE username = ?", (new_p, self.username))
+            conn.commit()
+            conn.close()
+            messagebox.showinfo("Success", "Password changed successfully.")
+            self.destroy()
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to update password: {e}")
+
+    def _save_profile(self):
         new_username = self.username_entry.get().strip()
-        new_password = self.password_entry.get().strip()
+        new_fullname = self.fullname_entry.get().strip()
 
         if not new_username:
             messagebox.showwarning("Validation", "Username cannot be empty.")
             return
 
+        import os
+        import shutil
+
+        # Prepare image path
+        final_image_path = self.current_image_path
+        if self.selected_image_path:
+            ext = os.path.splitext(self.selected_image_path)[1]
+            new_filename = f"{new_username}_profile{ext}"
+            target_dir = os.path.join(os.getcwd(), "profile_images")
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+            target_path = os.path.join(target_dir, new_filename)
+            try:
+                shutil.copy2(self.selected_image_path, target_path)
+                final_image_path = target_path
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save image: {e}")
+                return
+
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
-
-        # Load existing password so we can keep it if the field is left blank
-        cur.execute("SELECT password FROM users WHERE username = ?", (self.username,))
-        row = cur.fetchone()
-        current_password = row[0] if row else ""
 
         # If username changed, ensure it's unique
         if new_username != self.username:
@@ -122,31 +244,55 @@ class ProfileWindow(ctk.CTkToplevel):
                 messagebox.showerror("Error", "Username already exists.")
                 return
 
-        password_to_save = new_password if new_password else current_password
-
         cur.execute(
-            "UPDATE users SET username = ?, password = ? WHERE username = ?",
-            (new_username, password_to_save, self.username),
+            "UPDATE users SET username = ?, profile_image_path = ?, full_name = ? WHERE username = ?",
+            (new_username, final_image_path, new_fullname, self.username),
         )
+
+        if new_username != self.username:
+            cur.execute(
+                "UPDATE recent_logins SET username = ? WHERE username = ?",
+                (new_username, self.username)
+            )
+
         conn.commit()
         conn.close()
 
         self.username = new_username
+        self.current_image_path = final_image_path
+        self.current_full_name = new_fullname
 
-        messagebox.showinfo(
-            "Profile",
-            "Profile updated successfully. Use the new username the next time you log in.",
+        messagebox.showinfo("Profile", "Profile updated successfully.")
+        
+        # Callback to update avatar
+        if hasattr(self.master_ref, "_update_avatar_ui"):
+             self.master_ref._update_avatar_ui(final_image_path)
+        
+        self.destroy()
+
+    def _load_avatar_preview(self, path):
+        from PIL import Image
+        import os
+        
+        image = None
+        if path and os.path.exists(path):
+             try:
+                pil_img = Image.open(path)
+                image = ctk.CTkImage(light_image=pil_img, dark_image=pil_img, size=(self.avatar_size, self.avatar_size))
+             except Exception:
+                pass
+        
+        if image:
+            self.avatar_preview.configure(image=image, text="")
+        else:
+            self.avatar_preview.configure(image=None, text="NO PHOTO", fg_color="#1e293b", corner_radius=40)
+
+    def _select_photo(self):
+        from tkinter import filedialog
+        file_path = filedialog.askopenfilename(
+            title="Select Profile Photo",
+            filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp")]
         )
-        self.destroy()
-
-    def _logout(self):
-        from tkinter import messagebox as _mb
-
-        if not hasattr(self.master_ref, "logout"):
-            self.destroy()
-            return
-        if not _mb.askyesno("Confirm Logout", "Are you sure you want to logout?"):
-            return
-        self.master_ref.should_relogin = True
-        self.master_ref.destroy()
-        self.destroy()
+        if file_path:
+            self.selected_image_path = file_path
+            self._load_avatar_preview(file_path)

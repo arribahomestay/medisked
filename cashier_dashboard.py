@@ -7,7 +7,7 @@ import sqlite3
 
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from database import DB_NAME
 from sidebar_cashier import CashierSidebar
@@ -49,6 +49,7 @@ class CashierDashboard(ctk.CTk):
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
+        self.configure(fg_color="#020617")
 
         self.username = username
         self.should_relogin = False
@@ -68,16 +69,16 @@ class CashierDashboard(ctk.CTk):
             on_records=self.show_records,
             on_logout=self.logout,
         )
-        self.sidebar.grid(row=0, column=0, sticky="nsw")
+        self.sidebar.grid(row=0, column=0, sticky="nsw", rowspan=2)
 
-        self.content = ctk.CTkFrame(self, corner_radius=0)
-        self.content.grid(row=0, column=1, sticky="nsew")
+        self.content = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
+        self.content.grid(row=0, column=1, sticky="nsew", padx=20, pady=(60, 20))
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
         # Bottom status bar
         self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
+        self.status_frame.grid(row=1, column=1, sticky="ew", padx=20, pady=(0, 10))
         self.status_frame.grid_columnconfigure(0, weight=0)
         self.status_frame.grid_columnconfigure(1, weight=1)
 
@@ -85,40 +86,93 @@ class CashierDashboard(ctk.CTk):
             self.status_frame,
             text="● Checking...",
             anchor="w",
-            text_color="#9ca3af",
+            font=("Inter", 11),
+            text_color="#64748b",
         )
         self.net_status_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
 
-        self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
+        self.status_label = ctk.CTkLabel(
+            self.status_frame, 
+            text="", 
+            anchor="e",
+            font=("Inter", 11),
+            text_color="#64748b"
+        )
         self.status_label.grid(row=0, column=1, sticky="e")
 
         self._net_status = "unknown"
 
-        # Top-right avatar for account menu (use CTkImage so it scales properly)
-        user_png_path = os.path.join(base_dir, "images", "user.png")
+        # Top-right avatar for account menu
+        # Load user image from DB
+        self.current_avatar_path = None
         try:
-            avatar_image = Image.open(user_png_path)
-            self._avatar_icon = ctk.CTkImage(light_image=avatar_image, dark_image=avatar_image, size=(20, 20))
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("SELECT profile_image_path FROM users WHERE username = ?", (self.username,))
+            row = cur.fetchone()
+            if row and row[0]:
+                self.current_avatar_path = row[0]
+            conn.close()
         except Exception:
-            self._avatar_icon = None
+            pass
+
+        self._reload_avatar_image()
 
         self.avatar_button = ctk.CTkButton(
             self,
             image=self._avatar_icon,
             text="",
-            width=28,
-            height=28,
-            fg_color="transparent",
-            hover=False,
-            border_width=0,
+            width=32,
+            height=32,
+            fg_color="#020617",
+            hover_color="#1e293b",
+            corner_radius=16,
             command=self._open_account_menu,
         )
-        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
+        self.avatar_button.place(relx=1.0, x=-15, y=10, anchor="ne")
 
         self.current_page = None
         self.show_pos()
         self._update_status_bar()
         self._update_network_status()
+
+    def _reload_avatar_image(self):
+        # Default
+        if getattr(sys, "frozen", False):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(__file__)
+        img_path = os.path.join(base_dir, "images", "user.png")
+        
+        # Override if custom
+        if self.current_avatar_path and os.path.exists(self.current_avatar_path):
+            img_path = self.current_avatar_path
+            
+        try:
+            # Open and convert to RGBA
+            raw_img = Image.open(img_path).convert("RGBA")
+            
+            # Resize
+            size = (60, 60)
+            raw_img = raw_img.resize(size, Image.Resampling.LANCZOS)
+            
+            # Create circular mask
+            mask = Image.new("L", size, 0)
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse((0, 0) + size, fill=255)
+            
+            # Apply mask
+            circular_img = Image.new("RGBA", size, (0, 0, 0, 0))
+            circular_img.paste(raw_img, (0, 0), mask=mask)
+            
+            self._avatar_icon = ctk.CTkImage(light_image=circular_img, dark_image=circular_img, size=(30, 30))
+        except Exception:
+            self._avatar_icon = None
+
+    def _update_avatar_ui(self, new_path):
+        self.current_avatar_path = new_path
+        self._reload_avatar_image()
+        self.avatar_button.configure(image=self._avatar_icon)
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
@@ -171,11 +225,21 @@ class CashierDashboard(ctk.CTk):
         y = max(min_y, min(desired_y, max_y))
 
         self.account_menu.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Container with border
+        container = ctk.CTkFrame(
+            self.account_menu, 
+            fg_color="#1e293b", 
+            border_width=2, 
+            border_color="#475569", # Slate 600 border
+            corner_radius=0
+        )
+        container.pack(fill="both", expand=True)
 
-        self.account_menu.grid_columnconfigure(0, weight=1)
+        container.grid_columnconfigure(0, weight=1)
 
         btn_settings = ctk.CTkButton(
-            self.account_menu,
+            container,
             text="ACCOUNT SETTINGS",
             anchor="w",
             command=self._open_profile_settings,
@@ -183,7 +247,7 @@ class CashierDashboard(ctk.CTk):
         btn_settings.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
 
         btn_security = ctk.CTkButton(
-            self.account_menu,
+            container,
             text="SECURITY",
             anchor="w",
             command=self._open_security,
@@ -191,7 +255,7 @@ class CashierDashboard(ctk.CTk):
         btn_security.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
 
         btn_logout = ctk.CTkButton(
-            self.account_menu,
+            container,
             text="LOGOUT",
             anchor="w",
             fg_color="#b91c1c",
@@ -206,16 +270,26 @@ class CashierDashboard(ctk.CTk):
         self.account_menu = None
 
     def _open_profile_settings(self):
-        self._close_account_menu()
+        if self.account_menu:
+            self.account_menu.destroy()
+            self.account_menu = None
 
         if self.profile_window is None or not self.profile_window.winfo_exists():
-            self.profile_window = CashierProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
+            from profile_window import ProfileWindow
+            self.profile_window = ProfileWindow(self, self.username, anchor_widget=self.avatar_button, mode="settings")
         else:
             self.profile_window.focus()
 
     def _open_security(self):
-        self._close_account_menu()
-        messagebox.showinfo("Security", "WALA PANI")
+        if self.account_menu:
+            self.account_menu.destroy()
+            self.account_menu = None
+
+        if self.profile_window is None or not self.profile_window.winfo_exists():
+            from profile_window import ProfileWindow
+            self.profile_window = ProfileWindow(self, self.username, anchor_widget=self.avatar_button, mode="security")
+        else:
+            self.profile_window.focus()
 
     def _logout_from_menu(self):
         self._close_account_menu()

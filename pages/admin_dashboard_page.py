@@ -7,73 +7,76 @@ from database import DB_NAME
 
 class AdminDashboardPage(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, corner_radius=0)
+        super().__init__(master, corner_radius=0, fg_color="transparent")
 
-        self.grid_rowconfigure(0, weight=0)
+        self.grid_rowconfigure(0, weight=0, minsize=80)
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         title = ctk.CTkLabel(
             self,
-            text="Dashboard",
-            font=("Segoe UI", 24, "bold"),
+            text="Dashboard Overview",
+            font=("Inter", 24, "bold"),
+            text_color="white"
         )
-        title.grid(row=0, column=0, padx=30, pady=(10, 4), sticky="w")
+        title.grid(row=0, column=0, padx=30, pady=(20, 10), sticky="w")
 
         content = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        content.grid(row=1, column=0, padx=30, pady=(0, 24), sticky="nsew")
+        content.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
         content.grid_rowconfigure(1, weight=1)
         content.grid_columnconfigure(0, weight=2)
         content.grid_columnconfigure(1, weight=3)
 
         stats_row = ctk.CTkFrame(content, fg_color="transparent")
-        stats_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 12))
+        stats_row.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 20))
         for i in range(5):
             stats_row.grid_columnconfigure(i, weight=1)
 
         # Users (blue)
-        self.card_users = self._create_stat_card(stats_row, 0, "Users", "0", fg_color="#2563eb")
+        self.card_users = self._create_stat_card(stats_row, 0, "TOTAL USERS", "0", fg_color="#3b82f6")
         # Active doctors (green)
-        self.card_doctors = self._create_stat_card(stats_row, 1, "Doctors", "0", fg_color="#16a34a")
+        self.card_doctors = self._create_stat_card(stats_row, 1, "ACTIVE DOCTORS", "0", fg_color="#10b981")
         # Total appointments (indigo)
-        self.card_total_appt = self._create_stat_card(stats_row, 2, "Total appointments", "0", fg_color="#4f46e5")
+        self.card_total_appt = self._create_stat_card(stats_row, 2, "APPOINTMENTS", "0", fg_color="#6366f1")
         # Earnings today (amber)
-        self.card_appointments = self._create_stat_card(stats_row, 3, "Earnings today", "₱0.00", fg_color="#f59e0b")
+        self.card_appointments = self._create_stat_card(stats_row, 3, "EARNED TODAY", "₱0.00", fg_color="#f59e0b")
         # Earnings this month (rose)
-        self.card_today = self._create_stat_card(stats_row, 4, "Earnings this month", "₱0.00", fg_color="#e11d48")
+        self.card_today = self._create_stat_card(stats_row, 4, "MONTHLY EARNINGS", "₱0.00", fg_color="#f43f5e")
         # New metric: Average earnings per appointment (teal)
-        self.card_avg_earnings = self._create_stat_card(stats_row, 5, "Average earnings per appointment", "₱0.00", fg_color="#2dd4bf")
+        self.card_avg_earnings = self._create_stat_card(stats_row, 5, "AVG. PER APPT", "₱0.00", fg_color="#14b8a6")
 
-        left_frame = ctk.CTkFrame(content, corner_radius=10)
-        left_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 8))
+        left_frame = ctk.CTkFrame(content, corner_radius=16, fg_color="#0f172a") # Darker inner container
+        left_frame.grid(row=1, column=0, sticky="nsew", padx=(0, 10))
         left_frame.grid_rowconfigure(1, weight=1)
         left_frame.grid_columnconfigure(0, weight=1)
 
         left_title = ctk.CTkLabel(
             left_frame,
-            text="Appointments Analytics",
-            font=("Segoe UI", 17, "bold"),
+            text="Top Doctors",
+            font=("Inter", 16, "bold"),
+            text_color="#f8fafc"
         )
-        left_title.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+        left_title.grid(row=0, column=0, padx=20, pady=(16, 8), sticky="w")
 
-        self.analytics_list = ctk.CTkScrollableFrame(left_frame, corner_radius=10)
-        self.analytics_list.grid(row=1, column=0, padx=16, pady=(0, 16), sticky="nsew")
+        self.analytics_list = ctk.CTkScrollableFrame(left_frame, corner_radius=10, fg_color="transparent")
+        self.analytics_list.grid(row=1, column=0, padx=10, pady=(0, 16), sticky="nsew")
         self.analytics_list.grid_columnconfigure(0, weight=1)
 
-        recent_frame = ctk.CTkFrame(content, corner_radius=10)
-        recent_frame.grid(row=1, column=1, columnspan=1, padx=20, pady=(0, 20), sticky="nsew")
+        recent_frame = ctk.CTkFrame(content, corner_radius=16, fg_color="#0f172a") # Darker inner container
+        recent_frame.grid(row=1, column=1, columnspan=1, padx=(10, 0), pady=(0, 0), sticky="nsew")
         recent_frame.grid_columnconfigure(0, weight=1)
         recent_frame.grid_rowconfigure(1, weight=1)
 
         recent_title = ctk.CTkLabel(
             recent_frame,
             text="Recent Appointments",
-            font=("Segoe UI", 17, "bold"),
+            font=("Inter", 16, "bold"),
+            text_color="#f8fafc"
         )
-        recent_title.grid(row=0, column=0, padx=16, pady=(12, 4), sticky="w")
+        recent_title.grid(row=0, column=0, padx=20, pady=(16, 8), sticky="w")
 
-        self.recent_list = ctk.CTkScrollableFrame(recent_frame, corner_radius=10)
-        self.recent_list.grid(row=1, column=0, padx=16, pady=(0, 16), sticky="nsew")
+        self.recent_list = ctk.CTkScrollableFrame(recent_frame, corner_radius=10, fg_color="transparent")
+        self.recent_list.grid(row=1, column=0, padx=10, pady=(0, 16), sticky="nsew")
         self.recent_list.grid_columnconfigure(0, weight=1)
 
         self._refresh_data()
@@ -82,32 +85,32 @@ class AdminDashboardPage(ctk.CTkFrame):
         return sqlite3.connect(DB_NAME)
 
     def _create_stat_card(self, parent, column, label, value, fg_color):
-        accent_colors = [
-            ("#1f2933", "#3b82f6"),  # users
-            ("#1f2933", "#10b981"),  # doctors
-            ("#1f2933", "#f97316"),  # appointments
-            ("#1f2933", "#e11d48"),  # today
-            ("#1f2933", "#f59e0b"),  # appointments
-            ("#1f2933", "#2dd4bf"),  # average earnings
-        ]
-        bg_color, value_color = accent_colors[column]
-
-        card = ctk.CTkFrame(parent, corner_radius=10, fg_color=bg_color)
-        card.grid(row=0, column=column, padx=4, sticky="nsew")
+        # Modern filled stat card
+        card = ctk.CTkFrame(
+            parent, 
+            corner_radius=12, 
+            fg_color="#334155", # Slate 700 (Lighter than background)
+            border_width=0
+        )
+        card.grid(row=0, column=column, padx=6, sticky="nsew")
         card.grid_rowconfigure(0, weight=0)
         card.grid_rowconfigure(1, weight=1)
         card.grid_columnconfigure(0, weight=1)
 
-        title = ctk.CTkLabel(card, text=label, font=("Segoe UI", 13))
-        title.grid(row=0, column=0, padx=14, pady=(10, 2), sticky="w")
+        title = ctk.CTkLabel(card, text=label, font=("Inter", 11, "bold"), text_color="#cbd5e1")
+        title.grid(row=0, column=0, padx=14, pady=(14, 2), sticky="w")
 
         value_label = ctk.CTkLabel(
             card,
             text=value,
-            font=("Segoe UI", 26, "bold"),
-            text_color=value_color,
+            font=("Inter", 22, "bold"),
+            text_color="white", 
         )
-        value_label.grid(row=1, column=0, padx=12, pady=(0, 10), sticky="w")
+        value_label.grid(row=1, column=0, padx=14, pady=(0, 14), sticky="w")
+        
+        # Indicator line
+        indicator = ctk.CTkFrame(card, height=3, width=40, fg_color=fg_color, corner_radius=2)
+        indicator.grid(row=2, column=0, padx=14, pady=(0, 12), sticky="w")
 
         return value_label
 
@@ -260,31 +263,50 @@ class AdminDashboardPage(ctk.CTkFrame):
                 self.analytics_list,
                 text="No appointment data yet.",
                 font=("Segoe UI", 13),
+                text_color="#94a3b8"
             )
             empty.grid(row=0, column=0, padx=8, pady=8, sticky="w")
         else:
             for idx, (doc_name, count) in enumerate(top_doctors):
-                row_frame = ctk.CTkFrame(self.analytics_list, fg_color="transparent")
-                row_frame.grid(row=idx, column=0, sticky="ew", pady=3)
+                row_frame = ctk.CTkFrame(
+                    self.analytics_list, 
+                    fg_color="#1e293b", # Card on dark bg
+                    corner_radius=8, 
+                    border_width=0
+                )
+                row_frame.grid(row=idx, column=0, sticky="ew", pady=4, padx=4)
                 row_frame.grid_columnconfigure(1, weight=1)
 
+                # Badge
                 badge = ctk.CTkLabel(
                     row_frame,
                     text=str(count),
-                    font=("Segoe UI", 15, "bold"),
-                    fg_color="#2563eb",
-                    corner_radius=999,
-                    width=34,
+                    font=("Inter", 14, "bold"),
+                    fg_color="#3b82f6", # Blue accent
+                    text_color="white",
+                    corner_radius=6,
+                    width=32,
+                    height=24
                 )
-                badge.grid(row=0, column=0, padx=(0, 8), pady=2)
+                badge.grid(row=0, column=0, padx=12, pady=12)
 
                 label = ctk.CTkLabel(
                     row_frame,
-                    text=f"Appointments for {doc_name}",
-                    font=("Segoe UI", 13),
+                    text=f"{doc_name}",
+                    font=("Inter", 13, "bold"),
+                    text_color="#e2e8f0",
                     anchor="w",
                 )
-                label.grid(row=0, column=1, sticky="ew")
+                label.grid(row=0, column=1, sticky="w", padx=(0, 10))
+
+                # Optional descriptive suffix
+                sub = ctk.CTkLabel(
+                    row_frame, 
+                    text="appointments", 
+                    font=("Segoe UI", 11), 
+                    text_color="#64748b"
+                )
+                sub.grid(row=0, column=2, sticky="e", padx=12)
 
         # Recent appointments list
         for child in self.recent_list.winfo_children():
@@ -295,6 +317,7 @@ class AdminDashboardPage(ctk.CTkFrame):
                 self.recent_list,
                 text="No appointments found.",
                 font=("Segoe UI", 13),
+                text_color="#94a3b8",
                 anchor="w",
             )
             empty.grid(row=0, column=0, padx=10, pady=10, sticky="w")
@@ -303,63 +326,48 @@ class AdminDashboardPage(ctk.CTkFrame):
         from datetime import datetime as _dt
 
         for idx, (patient, doctor, schedule, notes, is_paid, is_rescheduled) in enumerate(recent_rows):
-            row_frame = ctk.CTkFrame(self.recent_list, fg_color="#111827", corner_radius=8)
-            row_frame.grid(row=idx, column=0, sticky="ew", padx=4, pady=3)
+            # Filled card style
+            row_frame = ctk.CTkFrame(
+                self.recent_list, 
+                fg_color="#1e293b", # Card on dark bg
+                border_width=0, 
+                corner_radius=10
+            )
+            row_frame.grid(row=idx, column=0, sticky="ew", padx=4, pady=4)
             row_frame.grid_columnconfigure(0, weight=1)
 
             try:
                 dt = _dt.strptime(schedule, "%Y-%m-%d %H:%M")
-                when = dt.strftime("%b %d, %Y · %I:%M %p")
+                when = dt.strftime("%b %d, %Y • %I:%M %p")
             except Exception:
                 when = schedule
 
-            # Top row: when + status chips
-            top = ctk.CTkFrame(row_frame, fg_color="transparent")
-            top.grid(row=0, column=0, sticky="ew", padx=10, pady=(6, 2))
-            top.grid_columnconfigure(0, weight=1)
+            # 1. Header Row (Date + Status Chips)
+            header_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            header_frame.grid(row=0, column=0, sticky="ew", padx=12, pady=(10, 4))
+            header_frame.grid_columnconfigure(0, weight=1)
 
-            when_lbl = ctk.CTkLabel(top, text=when, font=("Segoe UI", 12, "bold"), anchor="w")
-            when_lbl.grid(row=0, column=0, sticky="w")
-
-            col_idx = 1
-            if is_rescheduled:
-                chip = ctk.CTkLabel(
-                    top,
-                    text="Rescheduled",
-                    font=("Segoe UI", 11, "bold"),
-                    fg_color="#f97316",
-                    corner_radius=999,
-                    padx=10,
-                    pady=2,
-                )
-                chip.grid(row=0, column=col_idx, sticky="e", padx=(8, 0))
-                col_idx += 1
+            ctk.CTkLabel(header_frame, text=when, font=("Inter", 12, "bold"), text_color="#cbd5e1").grid(row=0, column=0, sticky="w")
 
             status_text = "PAID" if is_paid else "UNPAID"
-            status_color = "#16a34a" if is_paid else "#dc2626"
-            status_chip = ctk.CTkLabel(
-                top,
-                text=status_text,
-                font=("Segoe UI", 11, "bold"),
-                fg_color=status_color,
-                corner_radius=999,
-                padx=10,
-                pady=2,
-            )
-            status_chip.grid(row=0, column=col_idx, sticky="e", padx=(8, 0))
+            status_color = "#10b981" if is_paid else "#ef4444" # Green / Red
+            
+            # Use small text or icon for status? Chip is good.
+            if is_rescheduled:
+                ctk.CTkLabel(header_frame, text="RESCHED", font=("Inter", 10, "bold"), text_color="#f97316").grid(row=0, column=1, padx=(0, 8))
+            
+            # Simple text label for status instead of heavy button-like chip
+            ctk.CTkLabel(header_frame, text=status_text, font=("Inter", 11, "bold"), text_color=status_color).grid(row=0, column=2)
 
-            # Second row: patient + doctor
-            who_text = f"{patient or '(No patient)'} with {doctor or '(No doctor)'}"
-            who_lbl = ctk.CTkLabel(row_frame, text=who_text, font=("Segoe UI", 12), anchor="w")
-            who_lbl.grid(row=1, column=0, sticky="w", padx=10)
+            # 2. Details Row
+            details_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            details_frame.grid(row=1, column=0, sticky="ew", padx=12, pady=(0, 10))
+            
+            # Patient Info
+            ctk.CTkLabel(details_frame, text=f"Patient: {patient or '-'}", font=("Inter", 13), text_color="white").pack(anchor="w")
+            ctk.CTkLabel(details_frame, text=f"Doctor: {doctor or '-'}", font=("Inter", 12), text_color="#94a3b8").pack(anchor="w")
 
-            # Third row: notes (if any)
             if notes:
-                notes_lbl = ctk.CTkLabel(
-                    row_frame,
-                    text=notes,
-                    font=("Segoe UI", 11),
-                    anchor="w",
-                    justify="left",
-                )
-                notes_lbl.grid(row=2, column=0, sticky="w", padx=10, pady=(0, 6))
+                # Truncate notes if too long
+                preview = (notes[:60] + '...') if len(notes) > 60 else notes
+                ctk.CTkLabel(details_frame, text=f"📝 {preview}", font=("Inter", 11, "italic"), text_color="#64748b").pack(anchor="w", pady=(4,0))

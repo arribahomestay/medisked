@@ -1,159 +1,152 @@
 import customtkinter as ctk
 from datetime import datetime
+from tkinter import messagebox
 
 from database import get_setting, set_setting, get_activity_logs, log_activity
 
 
 class AdminSettingsPage(ctk.CTkFrame):
     def __init__(self, master):
-        super().__init__(master, corner_radius=0)
+        super().__init__(master, corner_radius=0, fg_color="transparent")
 
-        self.grid_rowconfigure(0, weight=0)
-        self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
 
-        title = ctk.CTkLabel(
-            self,
-            text="Settings",
-            font=("Segoe UI", 24, "bold"),
-        )
-        title.grid(row=0, column=0, padx=30, pady=(30, 10), sticky="w")
+        # 1. Header & Controls Card
+        header_card = ctk.CTkFrame(self, fg_color="#1e293b", corner_radius=16) # Slate 800
+        header_card.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        header_card.grid_columnconfigure(0, weight=1)
 
-        # Main content container
-        content = ctk.CTkFrame(self, corner_radius=10)
-        content.grid(row=1, column=0, padx=30, pady=(0, 30), sticky="nsew")
-        content.grid_columnconfigure(0, weight=1)
-        content.grid_rowconfigure(1, weight=1)
+        # Title
+        title_frame = ctk.CTkFrame(header_card, fg_color="transparent")
+        title_frame.grid(row=0, column=0, padx=24, pady=24, sticky="ew")
+        
+        ctk.CTkLabel(
+            title_frame, 
+            text="System Settings", 
+            font=("Inter", 20, "bold"), 
+            text_color="white"
+        ).pack(anchor="w")
 
-        # Tab buttons row (like Manage Accounts window)
-        tab_row = ctk.CTkFrame(content, fg_color="transparent")
-        tab_row.grid(row=0, column=0, padx=20, pady=(16, 10), sticky="w")
-        tab_row.grid_columnconfigure(0, weight=0)
-        tab_row.grid_columnconfigure(1, weight=0)
-        tab_row.grid_columnconfigure(2, weight=1)
+        ctk.CTkLabel(
+            title_frame, 
+            text="Configure global system preferences and view logs.", 
+            font=("Inter", 13), 
+            text_color="#94a3b8"
+        ).pack(anchor="w", pady=(2, 0))
 
-        self.system_tab_btn = ctk.CTkButton(tab_row, text="System Settings", command=self._show_system_tab)
-        self.system_tab_btn.grid(row=0, column=0, padx=(0, 10), pady=0, sticky="w")
+        # Controls (Tabs)
+        controls_frame = ctk.CTkFrame(header_card, fg_color="transparent")
+        controls_frame.grid(row=0, column=1, padx=24, pady=24, sticky="e")
 
-        self.logs_tab_btn = ctk.CTkButton(tab_row, text="Activity Logs", command=self._show_logs_tab)
-        self.logs_tab_btn.grid(row=0, column=1, padx=(0, 0), pady=0, sticky="w")
+        def _tab_btn(txt, cmd, color="#3b82f6"): 
+            return ctk.CTkButton(
+                controls_frame,
+                text=txt,
+                font=("Inter", 13, "bold"),
+                fg_color=color,
+                hover_color="#2563eb",
+                height=36,
+                corner_radius=8,
+                command=cmd
+            )
 
-        # System Settings content frame
-        self.system_frame = ctk.CTkFrame(content, corner_radius=10)
-        self.system_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.btn_system = _tab_btn("General", self._show_system_tab)
+        self.btn_system.pack(side="left", padx=(0, 10))
+
+        self.btn_logs = _tab_btn("Activity Logs", self._show_logs_tab, "#8b5cf6") # Violet
+        self.btn_logs.pack(side="left")
+
+        # 2. Content Area
+        self.content_area = ctk.CTkFrame(self, fg_color="transparent")
+        self.content_area.grid(row=1, column=0, sticky="nsew", padx=20, pady=(10, 20))
+        self.content_area.grid_columnconfigure(0, weight=1)
+        self.content_area.grid_rowconfigure(0, weight=1)
+
+        # -- VIEW: System Settings --
+        self.system_frame = ctk.CTkFrame(self.content_area, corner_radius=16, fg_color="#1e293b")
         self.system_frame.grid_columnconfigure(0, weight=1)
-        self.system_frame.grid_rowconfigure(2, weight=1)
 
-        system_title = ctk.CTkLabel(
-            self.system_frame,
-            text="SYSTEM SETTINGS",
-            font=("Segoe UI", 16, "bold"),
+        # Inner Content for System Settings (Card Style)
+        sys_content = ctk.CTkFrame(
+            self.system_frame, 
+            fg_color="#334155", # Slate 700
+            border_width=1, 
+            border_color="#475569", # Slate 600
+            corner_radius=12
         )
-        system_title.grid(row=0, column=0, padx=16, pady=(14, 6), sticky="w")
+        sys_content.place(relx=0.5, rely=0.5, anchor="center")
 
-        system_hint = ctk.CTkLabel(
-            self.system_frame,
-            text="Configure global system preferences here.",
-            font=("Segoe UI", 11),
-            anchor="w",
-        )
-        system_hint.grid(row=1, column=0, padx=16, pady=(0, 10), sticky="w")
+        ctk.CTkLabel(sys_content, text="Preferences", font=("Inter", 18, "bold"), text_color="white").pack(pady=(20, 20), padx=40, anchor="center")
 
-        # System options body
-        system_body = ctk.CTkFrame(self.system_frame, corner_radius=8, fg_color="transparent")
-        system_body.grid(row=2, column=0, padx=16, pady=(0, 14), sticky="nsew")
-        system_body.grid_columnconfigure(0, weight=1)
+        self.logging_switch = ctk.CTkSwitch(sys_content, text="Enable Activity Logging", font=("Inter", 13), text_color="#e2e8f0", progress_color="#10b981")
+        self.logging_switch.pack(pady=10, padx=40, anchor="w")
+        
+        self.login_popup_switch = ctk.CTkSwitch(sys_content, text="Show Login Success Popup", font=("Inter", 13), text_color="#e2e8f0", progress_color="#10b981")
+        self.login_popup_switch.pack(pady=10, padx=40, anchor="w")
 
-        self.logging_switch = ctk.CTkCheckBox(
-            system_body,
-            text="Enable activity logging",
-        )
-        self.logging_switch.grid(row=0, column=0, padx=4, pady=(4, 2), sticky="w")
+        ctk.CTkButton(sys_content, text="Save Changes", width=200, height=40, font=("Inter", 13, "bold"), fg_color="#3b82f6", hover_color="#2563eb", command=self._save_settings).pack(pady=(30, 20), padx=40)
 
-        self.login_popup_switch = ctk.CTkCheckBox(
-            system_body,
-            text="Show login success popup",
-        )
-        self.login_popup_switch.grid(row=1, column=0, padx=4, pady=(2, 4), sticky="w")
 
-        save_btn = ctk.CTkButton(self.system_frame, text="Save changes", command=self._save_settings)
-        save_btn.grid(row=3, column=0, padx=16, pady=(0, 16), sticky="e")
-
-        # Activity Logs content frame (initially hidden)
-        self.logs_frame = ctk.CTkFrame(content, corner_radius=10)
-        self.logs_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        # -- VIEW: Logs --
+        self.logs_frame = ctk.CTkFrame(self.content_area, fg_color="transparent")
         self.logs_frame.grid_columnconfigure(0, weight=1)
-        self.logs_frame.grid_rowconfigure(2, weight=1)
-        self.logs_frame.grid_remove()
-
-        logs_title = ctk.CTkLabel(
-            self.logs_frame,
-            text="ACTIVITY LOGS",
-            font=("Segoe UI", 16, "bold"),
-        )
-        logs_title.grid(row=0, column=0, padx=16, pady=(14, 4), sticky="w")
-
-        # Filter row: date selector + refresh
-        filter_row = ctk.CTkFrame(self.logs_frame, fg_color="transparent")
-        filter_row.grid(row=1, column=0, padx=16, pady=(0, 6), sticky="ew")
-        filter_row.grid_columnconfigure(1, weight=1)
-
-        filter_label = ctk.CTkLabel(filter_row, text="Filter by date:", font=("Segoe UI", 11))
-        filter_label.grid(row=0, column=0, padx=(0, 8), pady=0, sticky="w")
-
+        self.logs_frame.grid_rowconfigure(1, weight=1)
+        
+        # Logs Filter Bar
+        logs_controls = ctk.CTkFrame(self.logs_frame, fg_color="#1e293b", corner_radius=12)
+        logs_controls.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        
+        ctk.CTkLabel(logs_controls, text="Filter Date:", font=("Inter", 13, "bold"), text_color="#94a3b8").pack(side="left", padx=(15, 10), pady=12)
+        
         self.logs_date_filter = ctk.CTkComboBox(
-            filter_row,
+            logs_controls,
             values=["All dates"],
             state="readonly",
-            width=180,
+            width=160,
+            font=("Inter", 13),
+            fg_color="#334155",
+            border_color="#475569",
+            button_color="#475569",
+            text_color="white",
             command=lambda _v: self._reload_logs(),
         )
         self.logs_date_filter.set("All dates")
-        self.logs_date_filter.grid(row=0, column=1, padx=(0, 8), pady=0, sticky="w")
+        self.logs_date_filter.pack(side="left", pady=12)
+        
+        ctk.CTkButton(
+            logs_controls, 
+            text="Refresh", 
+            width=80, 
+            height=30,
+            font=("Inter", 12),
+            fg_color="#334155", 
+            hover_color="#475569", 
+            command=self._reload_logs
+        ).pack(side="right", padx=15, pady=12)
 
-        self.logs_refresh_button = ctk.CTkButton(
-            filter_row,
-            text="Refresh",
-            width=80,
-            command=self._reload_logs,
-        )
-        self.logs_refresh_button.grid(row=0, column=2, padx=(0, 0), pady=0, sticky="e")
-
-        self.logs_text = ctk.CTkTextbox(self.logs_frame, height=220)
-        self.logs_text.grid(row=2, column=0, padx=16, pady=(0, 14), sticky="nsew")
-        self.logs_text.insert("1.0", "No activity logs to display.")
-        self.logs_text.configure(state="disabled")
+        # Logs List Container
+        self.logs_list = ctk.CTkScrollableFrame(self.logs_frame, corner_radius=16, fg_color="#1e293b")
+        self.logs_list.grid(row=1, column=0, sticky="nsew")
 
         # Start on System Settings tab
-        self._set_active_tab("system")
         self._load_settings()
-
-    def _set_active_tab(self, name: str):
-        # Simple visual feedback: active tab has blue fg_color, other is transparent
-        if name == "system":
-            self.system_tab_btn.configure(fg_color="#0d74d1")
-            self.logs_tab_btn.configure(fg_color="transparent")
-        else:
-            self.system_tab_btn.configure(fg_color="transparent")
-            self.logs_tab_btn.configure(fg_color="#0d74d1")
+        self._show_system_tab()
 
     def _show_system_tab(self):
-        self._set_active_tab("system")
-        self.logs_frame.grid_remove()
-        self.system_frame.grid()
+        self.logs_frame.grid_forget()
+        self.system_frame.grid(row=0, column=0, sticky="nsew")
 
     def _show_logs_tab(self):
-        self._set_active_tab("logs")
-        self.system_frame.grid_remove()
+        self.system_frame.grid_forget()
+        self.logs_frame.grid(row=0, column=0, sticky="nsew")
         self._reload_logs()
-        self.logs_frame.grid()
 
     def _load_settings(self):
         """Load current system settings into the UI."""
         logging_enabled = get_setting("activity_logging_enabled", "1") == "1"
         show_popup = get_setting("show_login_success_popup", "1") == "1"
 
-        # Set checkboxes without triggering extra logic
         self.logging_switch.select() if logging_enabled else self.logging_switch.deselect()
         self.login_popup_switch.select() if show_popup else self.login_popup_switch.deselect()
 
@@ -161,70 +154,107 @@ class AdminSettingsPage(ctk.CTkFrame):
         """Persist system settings from the UI to the database."""
         set_setting("activity_logging_enabled", "1" if self.logging_switch.get() else "0")
         set_setting("show_login_success_popup", "1" if self.login_popup_switch.get() else "0")
+        
         try:
             top = self.winfo_toplevel()
             username = getattr(top, "username", "admin")
-            detail = (
-                f"logging_enabled={'on' if self.logging_switch.get() else 'off'}, "
-                f"login_popup={'on' if self.login_popup_switch.get() else 'off'}"
-            )
-            log_activity(username, "admin", "update_system_settings", detail)
+            log_activity(username, "admin", "update_system_settings", "Updated global preferences")
         except Exception:
             pass
+        
+        messagebox.showinfo("Settings Saved", "System preferences have been updated successfully.")
 
     def _reload_logs(self):
-        """Reload activity logs into the text box, applying the date filter and 12-hour format."""
-        rows = get_activity_logs(limit=500)
-        self.logs_text.configure(state="normal")
-        self.logs_text.delete("1.0", "end")
+        """Reload activity logs into the list using batched rendering."""
+        for child in self.logs_list.winfo_children():
+            child.destroy()
 
-        # Build list of unique dates from timestamps (YYYY-MM-DD)
+        # Fetch more logs now that we have optimized rendering
+        rows = get_activity_logs(limit=200) 
+        
+        # Build list of unique dates
         dates: set[str] = set()
-        for ts, _username, _role, _action, _details in rows:
-            if ts:
-                dates.add(ts.split()[0])
+        for ts, _, _, _, _ in rows:
+            if ts: dates.add(ts.split()[0])
 
-        # Populate date filter combo (keep current selection where possible)
-        current = self.logs_date_filter.get() if hasattr(self, "logs_date_filter") else "All dates"
+        current = self.logs_date_filter.get()
         date_list = sorted(dates)
         values = ["All dates"] + date_list
-        try:
-            self.logs_date_filter.configure(values=values)
-        except Exception:
-            pass
-        if current not in values:
-            current = "All dates"
+        self.logs_date_filter.configure(values=values)
+        if current not in values: current = "All dates"
         self.logs_date_filter.set(current)
 
-        # Apply date filter
         selected_date = current if current != "All dates" else None
 
-        if not rows:
-            self.logs_text.insert("1.0", "No activity logs to display.")
-        else:
-            lines: list[str] = []
-            for ts, username, role, action, details in rows:
-                if not ts:
-                    continue
-                if selected_date and not ts.startswith(selected_date):
-                    continue
+        filtered_rows = []
+        for r in rows:
+            ts = r[0]
+            if not ts: continue
+            if selected_date and not ts.startswith(selected_date): continue
+            filtered_rows.append(r)
 
-                # Reformat timestamp to a nicer 12-hour form if possible
-                pretty_ts = ts
-                try:
-                    dt = datetime.strptime(ts, "%Y-%m-%d %I:%M:%S %p")
-                    pretty_ts = dt.strftime("%b %d, %Y %I:%M:%S %p")
-                except Exception:
-                    pass
+        if not filtered_rows:
+            ctk.CTkLabel(self.logs_list, text="No activity found.", font=("Inter", 14), text_color="#64748b").pack(pady=40)
+            return
 
-                user_part = username or "(system)"
-                role_part = f"[{role}]" if role else ""
-                detail_part = f" - {details}" if details else ""
-                lines.append(f"{pretty_ts}  {user_part} {role_part}  {action}{detail_part}")
+        # Header
+        h_frame = ctk.CTkFrame(self.logs_list, fg_color="transparent")
+        h_frame.pack(fill="x", padx=10, pady=(10,5))
+        h_frame.grid_columnconfigure(0, weight=0, minsize=160) # Time
+        h_frame.grid_columnconfigure(1, weight=0, minsize=120) # User
+        h_frame.grid_columnconfigure(2, weight=0, minsize=140) # Action
+        h_frame.grid_columnconfigure(3, weight=1)              # Details
 
-            if not lines:
-                self.logs_text.insert("1.0", "No activity logs to display for the selected date.")
-            else:
-                self.logs_text.insert("1.0", "\n".join(lines))
+        def _hl(t, c):
+             ctk.CTkLabel(h_frame, text=t.upper(), font=("Inter", 11, "bold"), text_color="#64748b", anchor="w").grid(row=0, column=c, sticky="ew", padx=10)
+        
+        _hl("TIMESTAMP", 0)
+        _hl("USER", 1)
+        _hl("ACTION", 2)
+        _hl("DETAILS", 3)
 
-        self.logs_text.configure(state="disabled")
+        # Start batch rendering
+        self._render_batch(filtered_rows, 0)
+
+    def _render_batch(self, rows, start_index):
+        """Render a small batch of log rows to prevent UI freeze."""
+        BATCH_SIZE = 10
+        end_index = min(start_index + BATCH_SIZE, len(rows))
+        
+        for i in range(start_index, end_index):
+            ts, username, role, action, details = rows[i]
+            
+            # Parse TS
+            pretty_ts = ts
+            try:
+                dt = datetime.strptime(ts, "%Y-%m-%d %I:%M:%S %p")
+                pretty_ts = dt.strftime("%b %d, %I:%M %p")
+            except: pass
+
+            row_card = ctk.CTkFrame(self.logs_list, fg_color="#334155", corner_radius=8, border_width=1, border_color="#475569")
+            row_card.pack(fill="x", padx=10, pady=4)
+            
+            row_card.grid_columnconfigure(0, weight=0, minsize=160)
+            row_card.grid_columnconfigure(1, weight=0, minsize=120)
+            row_card.grid_columnconfigure(2, weight=0, minsize=140)
+            row_card.grid_columnconfigure(3, weight=1)
+
+            # 1. Timestamp
+            ctk.CTkLabel(row_card, text=pretty_ts, font=("Inter", 12), text_color="#cbd5e1", anchor="w").grid(row=0, column=0, sticky="ew", padx=10, pady=12)
+            
+            # 2. User info
+            u_frame = ctk.CTkFrame(row_card, fg_color="transparent")
+            u_frame.grid(row=0, column=1, sticky="w", padx=10)
+            ctk.CTkLabel(u_frame, text=username or "?", font=("Inter", 13, "bold"), text_color="white", anchor="w").pack(anchor="w")
+            if role:
+                ctk.CTkLabel(u_frame, text=role.upper(), font=("Inter", 9, "bold"), text_color="#94a3b8", anchor="w").pack(anchor="w")
+            
+            # 3. Action
+            ctk.CTkLabel(row_card, text=action, font=("Inter", 12, "bold"), text_color="#3b82f6", anchor="w").grid(row=0, column=2, sticky="ew", padx=10)
+            
+            # 4. Details
+            ctk.CTkLabel(row_card, text=details or "-", font=("Inter", 12), text_color="#94a3b8", anchor="w", wraplength=400, justify="left").grid(row=0, column=3, sticky="ew", padx=10)
+
+        if end_index < len(rows):
+            # Schedule next batch
+            self.after(10, lambda: self._render_batch(rows, end_index))

@@ -5,7 +5,10 @@ import time
 import urllib.request
 import customtkinter as ctk
 from tkinter import messagebox, PhotoImage
-from PIL import Image
+from PIL import Image, ImageDraw
+
+import sqlite3
+from database import DB_NAME
 
 from sidebar_admin import AdminSidebar
 from manage_accounts_window import ManageAccountsWindow
@@ -46,9 +49,9 @@ class AdminDashboard(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        # Use a consistent dark background color for this window
-        base_bg = "#1f2933"
-        self.configure(fg_color=base_bg)
+        # Use a consistent dark background color for this window to match the "Expensive" theme
+        # Slate 950 or similar for deep contrast
+        self.configure(fg_color="#020617")
 
         self.username = username
         self.should_relogin = False
@@ -72,16 +75,18 @@ class AdminDashboard(ctk.CTk):
             on_profile=self.open_profile,
             on_logout=self.logout,
         )
-        self.sidebar.grid(row=0, column=0, sticky="nsw")
+        self.sidebar.grid(row=0, column=0, sticky="nsw", rowspan=2) # Spanning full height including status area
 
-        self.content = ctk.CTkFrame(self, corner_radius=0, fg_color=base_bg)
-        self.content.grid(row=0, column=1, sticky="nsew")
+        # Main Content Area
+        self.content = ctk.CTkFrame(self, corner_radius=20, fg_color="#1e293b") # Slate 800 for card-like feel
+        self.content.grid(row=0, column=1, sticky="nsew", padx=20, pady=(60, 20))
         self.content.grid_rowconfigure(0, weight=1)
         self.content.grid_columnconfigure(0, weight=1)
 
-        # Bottom status bar
+        # Bottom status bar (Floating inside content or separate?)
+        # Let's put it inside the main window grid but adjust column start
         self.status_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.status_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=16, pady=0)
+        self.status_frame.grid(row=1, column=1, sticky="ew", padx=20, pady=(0, 10))
         # Column 0: network indicator, Column 1: text status
         self.status_frame.grid_columnconfigure(0, weight=0)
         self.status_frame.grid_columnconfigure(1, weight=1)
@@ -90,46 +95,101 @@ class AdminDashboard(ctk.CTk):
             self.status_frame,
             text="● Checking...",
             anchor="w",
-            text_color="#9ca3af",
+            font=("Inter", 11),
+            text_color="#64748b",
         )
         self.net_status_label.grid(row=0, column=0, sticky="w", padx=(0, 12))
 
-        self.status_label = ctk.CTkLabel(self.status_frame, text="", anchor="e")
+        self.status_label = ctk.CTkLabel(
+            self.status_frame, 
+            text="", 
+            anchor="e",
+            font=("Inter", 11),
+            text_color="#64748b"
+        )
         self.status_label.grid(row=0, column=1, sticky="e")
 
         self._net_status = "unknown"
 
-        # Top-right avatar: image button using user.png with transparent background
-        user_png_path = os.path.join(base_dir, "images", "user.png")
+        # Top-right avatar
+        # Load user image from DB
+        self.current_avatar_path = None
         try:
-            avatar_image = Image.open(user_png_path)
-            self._avatar_icon = ctk.CTkImage(light_image=avatar_image, dark_image=avatar_image, size=(20, 20))
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("SELECT profile_image_path FROM users WHERE username = ?", (self.username,))
+            row = cur.fetchone()
+            if row and row[0]:
+                self.current_avatar_path = row[0]
+            conn.close()
         except Exception:
-            self._avatar_icon = None
+            pass
+        
+        # Load button image
+        self._reload_avatar_image()
 
         self.avatar_button = ctk.CTkButton(
             self,
             image=self._avatar_icon,
             text="",
-            width=28,
-            height=28,
-            fg_color="transparent",
-            hover=False,
-            border_width=0,
+            width=32,
+            height=32,
+            fg_color="#020617",
+            hover_color="#1e293b",
+            corner_radius=16,
             command=self.open_profile,
         )
-        self.avatar_button.place(relx=1.0, x=-20, y=10, anchor="ne")
+        self.avatar_button.place(relx=1.0, x=-15, y=10, anchor="ne")
 
         self.current_page = None
         self.show_dashboard()
         self._update_status_bar()
         self._update_network_status()
+    
+    def _reload_avatar_image(self):
+        # Default
+        if getattr(sys, "frozen", False):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(__file__)
+        img_path = os.path.join(base_dir, "images", "user.png")
+        
+        # Override if custom
+        if self.current_avatar_path and os.path.exists(self.current_avatar_path):
+            img_path = self.current_avatar_path
+            
+        try:
+            # Open and convert to RGBA
+            raw_img = Image.open(img_path).convert("RGBA")
+            
+            # Resize
+            size = (60, 60)
+            raw_img = raw_img.resize(size, Image.Resampling.LANCZOS)
+            
+            # Create circular mask
+            mask = Image.new("L", size, 0)
+            draw = ImageDraw.Draw(mask)
+            draw.ellipse((0, 0) + size, fill=255)
+            
+            # Apply mask
+            circular_img = Image.new("RGBA", size, (0, 0, 0, 0))
+            circular_img.paste(raw_img, (0, 0), mask=mask)
+            
+            self._avatar_icon = ctk.CTkImage(light_image=circular_img, dark_image=circular_img, size=(30, 30))
+        except Exception:
+            self._avatar_icon = None
+
+    def _update_avatar_ui(self, new_path):
+        self.current_avatar_path = new_path
+        self._reload_avatar_image()
+        self.avatar_button.configure(image=self._avatar_icon)
 
     def _set_page(self, widget: ctk.CTkFrame):
         if self.current_page is not None:
             self.current_page.destroy()
         self.current_page = widget
-        self.current_page.grid(row=0, column=0, sticky="nsew")
+        # The content frame already has padding, so we fill it
+        self.current_page.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
     def show_dashboard(self):
         from pages.admin_dashboard_page import AdminDashboardPage
@@ -170,10 +230,11 @@ class AdminDashboard(ctk.CTk):
         bx = self.avatar_button.winfo_rootx()
         by = self.avatar_button.winfo_rooty()
         bw = self.avatar_button.winfo_width()
+        bh = self.avatar_button.winfo_height()
 
         width, height = 200, 140
-        desired_x = bx - width + bw  # align menu under/right of avatar
-        desired_y = by + self.avatar_button.winfo_height() + 4
+        desired_x = bx - width + bw
+        desired_y = by + bh + 4 # using bh instead of self.avatar_button.winfo_height() since they're the same object reference in this scope logic
 
         root_x = self.winfo_rootx()
         root_y = self.winfo_rooty()
@@ -189,34 +250,44 @@ class AdminDashboard(ctk.CTk):
         y = max(min_y, min(desired_y, max_y))
 
         self.account_menu.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Container with border
+        container = ctk.CTkFrame(
+            self.account_menu, 
+            fg_color="#1e293b", 
+            border_width=2, 
+            border_color="#475569", # Slate 600 border
+            corner_radius=0
+        )
+        container.pack(fill="both", expand=True)
+        
+        container.grid_columnconfigure(0, weight=1)
 
-        self.account_menu.grid_columnconfigure(0, weight=1)
-
-        btn1 = ctk.CTkButton(
-            self.account_menu,
+        btn_settings = ctk.CTkButton(
+            container,
             text="ACCOUNT SETTINGS",
             anchor="w",
             command=self._open_account_settings,
         )
-        btn1.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
+        btn_settings.grid(row=0, column=0, padx=10, pady=(8, 4), sticky="ew")
 
-        btn3 = ctk.CTkButton(
-            self.account_menu,
+        btn_security = ctk.CTkButton(
+            container,
             text="SECURITY",
             anchor="w",
             command=self._open_security,
         )
-        btn3.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
+        btn_security.grid(row=1, column=0, padx=10, pady=4, sticky="ew")
 
-        btn4 = ctk.CTkButton(
-            self.account_menu,
+        btn_logout = ctk.CTkButton(
+            container,
             text="LOGOUT",
             anchor="w",
             fg_color="#b91c1c",
             hover_color="#991b1b",
             command=self._logout_from_menu,
         )
-        btn4.grid(row=2, column=0, padx=10, pady=(4, 8), sticky="ew")
+        btn_logout.grid(row=2, column=0, padx=10, pady=(4, 8), sticky="ew")
 
     def _close_account_menu(self):
         if self.account_menu is not None and self.account_menu.winfo_exists():
@@ -224,15 +295,24 @@ class AdminDashboard(ctk.CTk):
         self.account_menu = None
 
     def _open_account_settings(self):
-        self._close_account_menu()
+        if self.account_menu:
+            self.account_menu.destroy()
+            self.account_menu = None
+            
         if self.profile_window is None or not self.profile_window.winfo_exists():
-            self.profile_window = ProfileWindow(self, username=self.username, anchor_widget=self.avatar_button)
+            self.profile_window = ProfileWindow(self, username=self.username, anchor_widget=self.avatar_button, mode="settings")
         else:
             self.profile_window.focus()
 
     def _open_security(self):
-        self._close_account_menu()
-        messagebox.showinfo("Security", "WALA PANI")
+        if self.account_menu:
+            self.account_menu.destroy()
+            self.account_menu = None
+            
+        if self.profile_window is None or not self.profile_window.winfo_exists():
+            self.profile_window = ProfileWindow(self, username=self.username, anchor_widget=self.avatar_button, mode="security")
+        else:
+            self.profile_window.focus()
 
     def _logout_from_menu(self):
         self._close_account_menu()
@@ -248,28 +328,28 @@ class AdminDashboard(ctk.CTk):
         """Update the bottom status bar with username and current time every second."""
 
         now_str = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
-        self.status_label.configure(text=f"Medisked v1.0   |   User: {self.username}   |   {now_str}")
+        self.status_label.configure(text=f"Medisked Admin   |   {self.username}   |   {now_str}")
         self.after(1000, self._update_status_bar)
 
     def _update_network_status(self):
         """Periodically check internet connectivity and update the indicator.
 
         Colors:
-        - Gray  (#6b7280): offline (timeout)
+        - Gray  (#64748b): offline (timeout)
         - Orange(#f97316): slow (> 1.0s response)
-        - Green (#16a34a): good
-        - Blue  (#2563eb): no internet / DNS error
+        - Green (#10b981): good
+        - Blue  (#3b82f6): no internet / DNS error
         """
 
         def classify(latency: float | None, error: Exception | None):
             if error is not None:
                 # Treat network/DNS errors as no-internet
-                return "no_internet", "No internet", "#2563eb"
+                return "no_internet", "No internet", "#3b82f6"
             if latency is None:
-                return "offline", "Offline", "#6b7280"
+                return "offline", "Offline", "#64748b"
             if latency > 1.0:
                 return "slow", f"Slow ({latency*1000:.0f} ms)", "#f97316"
-            return "good", f"Online ({latency*1000:.0f} ms)", "#16a34a"
+            return "good", f"Online ({latency*1000:.0f} ms)", "#10b981"
 
         start = time.monotonic()
         latency: float | None = None

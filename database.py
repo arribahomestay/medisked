@@ -59,7 +59,11 @@ def init_db(db_path: str = DB_NAME) -> None:
     try:
         cur.execute("ALTER TABLE users ADD COLUMN full_name TEXT")
     except sqlite3.OperationalError:
-        
+        pass
+
+    try:
+        cur.execute("ALTER TABLE users ADD COLUMN profile_image_path TEXT")
+    except sqlite3.OperationalError:
         pass
 
     
@@ -158,6 +162,16 @@ def init_db(db_path: str = DB_NAME) -> None:
         ),
     )
 
+    
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS recent_logins (
+            username TEXT PRIMARY KEY,
+            last_login TEXT
+        )
+        """
+    )
+    
     conn.commit()
     conn.close()
 
