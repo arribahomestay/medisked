@@ -123,7 +123,7 @@ class DoctorManagePage(ctk.CTkFrame):
 
         master = self.winfo_toplevel()
         win = ctk.CTkToplevel(master)
-        win.title("Edit Time Slot")
+        win.title("Edit Time Slot" if slot_id != -1 else "Set Time Slot")
         win.geometry("500x350")
         win.configure(fg_color="#0f172a")
         win.transient(master)
@@ -136,7 +136,7 @@ class DoctorManagePage(ctk.CTkFrame):
         win.geometry(f"+{x}+{y}")
 
         win.grid_columnconfigure(1, weight=1)
-        ctk.CTkLabel(win, text="Edit Time Slot", font=("Inter", 18, "bold"), text_color="white").grid(row=0, column=0, columnspan=2, pady=(20, 20))
+        ctk.CTkLabel(win, text="Edit Time Slot" if slot_id != -1 else "Set Time Slot", font=("Inter", 18, "bold"), text_color="white").grid(row=0, column=0, columnspan=2, pady=(20, 20))
 
         hours = [f"{h:02d}" for h in range(1, 13)]
         minutes = ["00", "30"]
@@ -182,21 +182,48 @@ class DoctorManagePage(ctk.CTkFrame):
                 return
             conn = self._connect()
             cur = conn.cursor()
-            cur.execute("UPDATE doctor_availability SET start_time=?, end_time=? WHERE id=?", (ns, ne, slot_id))
+            
+            if slot_id == -1:
+                # Create new slot from virtual default
+                cur.execute("INSERT INTO doctor_availability (doctor_id, date, start_time, end_time, is_available, max_appointments, slot_length_minutes) VALUES (?, ?, ?, ?, 1, 1, 30)", 
+                           (self.doctor_id, self.selected_date, ns, ne))
+            else:
+                cur.execute("UPDATE doctor_availability SET start_time=?, end_time=? WHERE id=?", (ns, ne, slot_id))
+            
             conn.commit()
             conn.close()
             win.destroy()
             self._load_day_data(self.selected_date)
 
         def delete():
-            if messagebox.askyesno("Confirm", "Delete this time slot?"):
-                self._delete_slot(slot_id)
-                win.destroy()
+            if slot_id == -1:
+                 # Deleting the default slot means creating an 'Unavailable' override
+                 if messagebox.askyesno("Confirm", "Mark this day as Unavailable?"):
+                    conn = self._connect()
+                    cur = conn.cursor()
+                    # Ensure we have an unavailable header
+                    cur.execute("DELETE FROM doctor_availability WHERE doctor_id=? AND date=? AND start_time IS NULL", (self.doctor_id, self.selected_date))
+                    cur.execute("INSERT INTO doctor_availability (doctor_id, date, is_available) VALUES (?, ?, 0)", (self.doctor_id, self.selected_date))
+                    conn.commit()
+                    conn.close()
+                    win.destroy()
+                    self._refresh_calendar()
+                    self._load_day_data(self.selected_date)
+            else:
+                if messagebox.askyesno("Confirm", "Delete this time slot?"):
+                    self._delete_slot(slot_id)
+                    win.destroy()
+                    # If this was the last slot, we might end up showing default again?
+                    # Yes, unless we mark unavailable. But standard behavior for 'Delete Slot' usually leaves the day Available but empty.
+                    # With our new logic, Available but empty shows Default. 
+                    # This might be circular if the user WANTS 0 slots. 
+                    # But assuming user deletes slot to re-arrange or close shop.
+                    # We'll stick to 'No Slot -> Show Default'.
 
         btn_box = ctk.CTkFrame(win, fg_color="transparent")
         btn_box.grid(row=3, column=0, columnspan=2, pady=30)
         ctk.CTkButton(btn_box, text="Save Changes", font=("Inter", 13, "bold"), fg_color="#3b82f6", width=120, command=save).pack(side="left", padx=10)
-        ctk.CTkButton(btn_box, text="Delete Slot", font=("Inter", 13, "bold"), fg_color="#ef4444", hover_color="#b91c1c", width=120, command=delete).pack(side="left", padx=10)
+        ctk.CTkButton(btn_box, text="Delete Slot" if slot_id != -1 else "Remove Availability", font=("Inter", 13, "bold"), fg_color="#ef4444", hover_color="#b91c1c", width=120, command=delete).pack(side="left", padx=10)
 
     def _prev_month(self):
         if self.current_month == 1:
@@ -369,8 +396,9 @@ class DoctorManagePage(ctk.CTkFrame):
             return
 
         if not slots:
-            ctk.CTkLabel(self.slots_frame, text="No time slots arranged.", font=("Inter", 13), text_color="#64748b").pack(pady=20)
-            return
+            # Default to 9:00 - 17:00 if no slots and is available
+            # We use slot_id = -1 to indicate it's a virtual default slot
+            slots = [(-1, "09:00", "17:00", 1, 30)]
 
         def _fmt(t):
             try: return datetime.strptime(t, "%H:%M").strftime("%I:%M %p").lstrip("0")
